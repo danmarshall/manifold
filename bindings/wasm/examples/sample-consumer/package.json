@@ -1,0 +1,24 @@
+{
+  "name": "my-3d-app",
+  "version": "1.0.0",
+  "description": "A sample application that consumes a manifold-3d based library",
+  "main": "dist/app.js",
+  "type": "module",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/app.js"
+  },
+  "keywords": [
+    "manifold",
+    "3d"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "my-manifold-shapes": "file:../sample-library"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "typescript": "^5.0.0"
+  }
+}
