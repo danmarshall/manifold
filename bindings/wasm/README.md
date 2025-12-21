@@ -24,6 +24,17 @@ Manifold has full support for arbitrary vertex properties, and also has IDs that
 
 Also included are a novel and powerful suite of refining functions for smooth mesh interpolation. They handle smoothing both triangles and quads, as well as keeping polygonal faces flat. You can easily create sharp or small-radius edges where desired, or even drive the curvature by normal vectors.
 
+## Documentation
+
+- **[Get Started Guide](./documents/Get%20Started.md)** - Quick start guide for basic usage
+- **[JavaScript/TypeScript Usage Guide](./documents/JavaScript-TypeScript-Usage.md)** - Comprehensive guide on using JS/TS for 3D models, including:
+  - How code is executed (bundling, evaluation)
+  - Using npm dependencies and libraries
+  - Node.js style imports
+  - CDN imports vs local dependencies
+  - Creating reusable libraries
+  - CLI and web editor usage
+
 ## Note on memory management
 
 Since Manifold is a WASM module, it does not automatically garbage-collect like regular JavaScript. You must manually `delete()` each object constructed by your scripts (both `Manifold` and `CrossSection`), see [discussion](https://github.com/elalish/manifold/discussions/256#discussioncomment-3944287).
