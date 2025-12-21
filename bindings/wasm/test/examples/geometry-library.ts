@@ -40,6 +40,9 @@ export function twistedBox(
  * A true helical spring would require swept path extrusion along a helix,
  * which is not currently a built-in operation in Manifold. For accurate
  * spring models, consider using custom mesh construction.
+ * 
+ * @param segments - Total segments to distribute across all rings. For best
+ *                   results, use a value that's evenly divisible by rings.
  */
 export function stackedTorusRings(
   coilRadius: number = 10,
@@ -53,7 +56,8 @@ export function stackedTorusRings(
   }
   
   // Create multiple torus slices and stack them vertically
-  const torusSegment = torus(coilRadius, wireRadius, segments / rings, 16);
+  // Note: segments are divided among rings, so use multiples of rings for even distribution
+  const torusSegment = torus(coilRadius, wireRadius, Math.floor(segments / rings), 16);
   
   let result = torusSegment;
   for (let i = 1; i < rings; i++) {
