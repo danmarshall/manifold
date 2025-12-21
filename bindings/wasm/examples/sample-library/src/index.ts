@@ -30,16 +30,3 @@ export async function createCubeWithHole(
 
   return result;
 }
-
-/**
- * Export the shape as a GLB file data.
- * 
- * @param manifold - The Manifold object to export
- * @returns ArrayBuffer containing GLB data
- */
-export async function exportAsGLB(manifold: any): Promise<ArrayBuffer> {
-  const mesh = manifold.getMesh();
-  // This is a simplified export - in a real library you'd use proper glTF export
-  // For demonstration purposes only
-  return new ArrayBuffer(0);
-}
