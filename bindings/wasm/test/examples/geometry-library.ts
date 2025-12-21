@@ -48,6 +48,10 @@ export function stackedTorusRings(
   spacing: number = 8,
   segments: number = 64
 ): Manifold {
+  if (rings <= 0) {
+    throw new Error('rings must be greater than 0');
+  }
+  
   // Create multiple torus slices and stack them vertically
   const torusSegment = torus(coilRadius, wireRadius, segments / rings, 16);
   
