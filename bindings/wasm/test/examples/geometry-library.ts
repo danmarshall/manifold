@@ -13,17 +13,8 @@ export function torus(
   minorSegments: number = 24
 ): Manifold {
   const circle = CrossSection.circle(minorRadius, minorSegments);
-  const path: Vec3[] = [];
   
-  for (let i = 0; i <= majorSegments; i++) {
-    const angle = (i / majorSegments) * Math.PI * 2;
-    path.push([
-      Math.cos(angle) * majorRadius,
-      Math.sin(angle) * majorRadius,
-      0
-    ]);
-  }
-  
+  // Revolve the circle around the Z-axis at the major radius distance
   return Manifold.revolve(
     circle.translate([majorRadius, 0]),
     majorSegments
@@ -44,6 +35,9 @@ export function twistedBox(
 
 /**
  * Create a spring/coil
+ * Note: This is a simplified implementation using a torus shape.
+ * A true helical spring would require custom path extrusion which is not
+ * directly supported by the current Manifold API.
  */
 export function spring(
   coilRadius: number = 10,
@@ -52,25 +46,16 @@ export function spring(
   pitch: number = 8,
   segments: number = 64
 ): Manifold {
-  const circle = CrossSection.circle(wireRadius, 16);
-  const path: Vec3[] = [];
+  // For demonstration, we create multiple torus slices and stack them
+  // to approximate a spring shape
+  const torusSegment = torus(coilRadius, wireRadius, segments / coils, 16);
   
-  const totalSegments = segments * coils;
-  for (let i = 0; i <= totalSegments; i++) {
-    const t = i / totalSegments;
-    const angle = t * Math.PI * 2 * coils;
-    const z = t * pitch * coils;
-    
-    path.push([
-      Math.cos(angle) * coilRadius,
-      Math.sin(angle) * coilRadius,
-      z
-    ]);
+  let result = torusSegment;
+  for (let i = 1; i < coils; i++) {
+    result = result.add(torusSegment.translate([0, 0, i * pitch]));
   }
   
-  // Note: This is a simplified version. Real implementation would use
-  // Manifold.extrude with a path or custom mesh construction
-  return torus(coilRadius, wireRadius, segments, 16);
+  return result;
 }
 
 /**
