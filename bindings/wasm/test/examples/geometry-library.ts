@@ -34,25 +34,26 @@ export function twistedBox(
 }
 
 /**
- * Create a spring/coil
- * Note: This is a simplified implementation using a torus shape.
- * A true helical spring would require custom path extrusion which is not
- * directly supported by the current Manifold API.
+ * Create stacked torus rings (approximates a spring/coil shape)
+ * 
+ * Note: This creates stacked circular torus rings as a simple approximation.
+ * A true helical spring would require swept path extrusion along a helix,
+ * which is not currently a built-in operation in Manifold. For accurate
+ * spring models, consider using custom mesh construction.
  */
-export function spring(
+export function stackedTorusRings(
   coilRadius: number = 10,
   wireRadius: number = 2,
-  coils: number = 5,
-  pitch: number = 8,
+  rings: number = 5,
+  spacing: number = 8,
   segments: number = 64
 ): Manifold {
-  // For demonstration, we create multiple torus slices and stack them
-  // to approximate a spring shape
-  const torusSegment = torus(coilRadius, wireRadius, segments / coils, 16);
+  // Create multiple torus slices and stack them vertically
+  const torusSegment = torus(coilRadius, wireRadius, segments / rings, 16);
   
   let result = torusSegment;
-  for (let i = 1; i < coils; i++) {
-    result = result.add(torusSegment.translate([0, 0, i * pitch]));
+  for (let i = 1; i < rings; i++) {
+    result = result.add(torusSegment.translate([0, 0, i * spacing]));
   }
   
   return result;
