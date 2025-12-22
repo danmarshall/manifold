@@ -1,10 +1,5 @@
 // Application that consumes the my-manifold-shapes library
-import { createCubeWithHole, Manifold, ManifoldStatic } from 'my-manifold-shapes';
-
-// Extend the interfaces with methods we need
-export interface ManifoldStaticExtended extends ManifoldStatic {
-  sphere(radius: number, circularSegments?: number): Manifold;
-}
+import { createCubeWithHole } from 'my-manifold-shapes';
 
 export interface SceneParams {
   /**
@@ -29,9 +24,9 @@ export interface SceneParams {
  * @returns A Manifold object containing the complete scene
  */
 export function createScene(
-  ManifoldClass: ManifoldStaticExtended,
+  ManifoldClass: any,
   params: SceneParams = {}
-): Manifold {
+): any {
   const {
     libraryRadiusScale = 1.0,
     sphereCount = 6
