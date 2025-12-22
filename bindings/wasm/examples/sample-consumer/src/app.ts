@@ -20,12 +20,12 @@ export interface SceneParams {
  * initialized the WASM module. This ensures only one WASM instance across
  * the entire application.
  * 
- * @param Manifold - The Manifold class from an initialized WASM module
+ * @param ManifoldClass - The Manifold class from an initialized WASM module
  * @param params - Scene configuration parameters
  * @returns A Manifold object containing the complete scene
  */
 export function createScene(
-  Manifold: typeof Manifold,
+  ManifoldClass: typeof Manifold,
   params: SceneParams = {}
 ): Manifold {
   const {
@@ -35,7 +35,7 @@ export function createScene(
 
   // Use the library to create a cube with hole
   // Pass the Manifold class to avoid re-initializing WASM
-  const cubeWithHole = createCubeWithHole(Manifold, {
+  const cubeWithHole = createCubeWithHole(ManifoldClass, {
     cubeSize: [100, 100, 100],
     cylinderRadius: 30,
     cylinderHeight: 120,
@@ -47,7 +47,7 @@ export function createScene(
   const sphereRadius = 10;
   const ringRadius = 80;
   
-  let spheres = Manifold.sphere(sphereRadius, 32);
+  let spheres = ManifoldClass.sphere(sphereRadius, 32);
   spheres = spheres.translate([ringRadius, 0, 0]);
 
   // Add more spheres in a circle
@@ -55,7 +55,7 @@ export function createScene(
     const angle = (i / sphereCount) * Math.PI * 2;
     const x = Math.cos(angle) * ringRadius;
     const y = Math.sin(angle) * ringRadius;
-    const sphere = Manifold.sphere(sphereRadius, 32).translate([x, y, 0]);
+    const sphere = ManifoldClass.sphere(sphereRadius, 32).translate([x, y, 0]);
     spheres = spheres.add(sphere);
   }
 

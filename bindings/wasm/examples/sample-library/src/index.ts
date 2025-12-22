@@ -20,12 +20,12 @@ export interface CubeWithHoleParams {
  * The Manifold class should be passed in from the caller who has already
  * initialized the WASM module. This avoids multiple WASM initializations.
  * 
- * @param Manifold - The Manifold class from an initialized WASM module
+ * @param ManifoldClass - The Manifold class from an initialized WASM module
  * @param params - Configuration parameters
  * @returns A Manifold object with the cylinder subtracted from the cube
  */
 export function createCubeWithHole(
-  Manifold: typeof Manifold,
+  ManifoldClass: typeof Manifold,
   params: CubeWithHoleParams = {}
 ): Manifold {
   const {
@@ -36,11 +36,11 @@ export function createCubeWithHole(
   } = params;
 
   // Create a cube centered at origin
-  const cube = Manifold.cube(cubeSize, true);
+  const cube = ManifoldClass.cube(cubeSize, true);
 
   // Create a cylinder along the Z-axis with scaled radius
   const scaledRadius = cylinderRadius * radiusScale;
-  const cylinder = Manifold.cylinder(cylinderHeight, scaledRadius, scaledRadius);
+  const cylinder = ManifoldClass.cylinder(cylinderHeight, scaledRadius, scaledRadius);
 
   // Subtract the cylinder from the cube
   const result = cube.subtract(cylinder);
