@@ -1,7 +1,33 @@
 // Three.js viewer for shapes created by my-3d-app
 import * as THREE from 'three';
+import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import Module from 'manifold-3d';
 import { createScene, SceneParams } from 'my-3d-app';
+
+// Type for Manifold class constructor
+type ManifoldConstructor = {
+  cube: (size: [number, number, number], center?: boolean) => ManifoldInstance;
+  cylinder: (height: number, radiusLow: number, radiusHigh?: number, circularSegments?: number) => ManifoldInstance;
+  sphere: (radius: number, circularSegments?: number) => ManifoldInstance;
+  [key: string]: any;
+};
+
+// Type for Manifold instance
+type ManifoldInstance = {
+  add: (other: ManifoldInstance) => ManifoldInstance;
+  subtract: (other: ManifoldInstance) => ManifoldInstance;
+  translate: (v: [number, number, number] | number[]) => ManifoldInstance;
+  rotate: (v: [number, number, number]) => ManifoldInstance;
+  scale: (v: [number, number, number] | number[]) => ManifoldInstance;
+  getMesh: () => {
+    vertProperties: Float32Array | number[];
+    triVerts: Uint32Array | number[];
+  };
+  delete: () => void;
+  numVert: () => number;
+  numTri: () => number;
+  [key: string]: any;
+};
 
 // Get canvas and controls
 const canvas = document.getElementById('canvas') as HTMLCanvasElement;
@@ -25,6 +51,15 @@ const camera = new THREE.PerspectiveCamera(
 camera.position.set(200, 200, 200);
 camera.lookAt(0, 0, 0);
 
+// Set up orbit controls
+const controls = new OrbitControls(camera, canvas);
+controls.enableDamping = true;
+controls.dampingFactor = 0.05;
+controls.screenSpacePanning = false;
+controls.minDistance = 100;
+controls.maxDistance = 500;
+controls.maxPolarAngle = Math.PI;
+
 // Set up lights
 const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
 scene.add(ambientLight);
@@ -46,17 +81,7 @@ window.addEventListener('resize', () => {
 });
 
 // Convert Manifold mesh to Three.js geometry
-// Note: manifold parameter is a Manifold instance from manifold-3d
-// Using a minimal interface since we don't import manifold-3d types in the viewer
-interface ManifoldLike {
-  getMesh: () => {
-    vertProperties: ArrayLike<number>;
-    triVerts: ArrayLike<number>;
-  };
-  delete: () => void;
-}
-
-function manifoldToThreeGeometry(manifold: ManifoldLike): THREE.BufferGeometry {
+function manifoldToThreeGeometry(manifold: ManifoldInstance): THREE.BufferGeometry {
   const mesh = manifold.getMesh();
   const geometry = new THREE.BufferGeometry();
   
@@ -92,12 +117,16 @@ let currentParams: SceneParams = {
 };
 
 // WASM module - initialized once for the entire application
-let ManifoldClass: any = null;
+let ManifoldClass: ManifoldConstructor | null = null;
 
 // Update scene with new parameters
 function updateScene(params: SceneParams) {
   try {
     status.textContent = 'Generating geometry...';
+    
+    if (!ManifoldClass) {
+      throw new Error('Manifold class not initialized');
+    }
     
     // Create the scene from my-3d-app
     // Pass the Manifold class that was initialized once
@@ -148,11 +177,8 @@ sphereCountSlider.addEventListener('input', () => {
 function animate() {
   requestAnimationFrame(animate);
   
-  // Rotate the scene for better visualization
-  if (sceneMesh) {
-    sceneMesh.rotation.x += 0.005;
-    sceneMesh.rotation.y += 0.01;
-  }
+  // Update orbit controls
+  controls.update();
   
   renderer.render(scene, camera);
 }
@@ -166,7 +192,7 @@ async function init() {
     // This is the key optimization - only one WASM instance
     const wasm = await Module();
     wasm.setup();
-    ManifoldClass = wasm.Manifold;
+    ManifoldClass = wasm.Manifold as ManifoldConstructor;
     
     status.textContent = 'WASM initialized. Generating scene...';
     
