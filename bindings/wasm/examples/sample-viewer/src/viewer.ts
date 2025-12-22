@@ -1,5 +1,6 @@
 // Three.js viewer for shapes created by my-3d-app
 import * as THREE from 'three';
+import Module from 'manifold-3d';
 import { createScene, SceneParams } from 'my-3d-app';
 
 // Get canvas and controls
@@ -90,13 +91,17 @@ let currentParams: SceneParams = {
   sphereCount: 6
 };
 
+// WASM module - initialized once for the entire application
+let ManifoldClass: any = null;
+
 // Update scene with new parameters
-async function updateScene(params: SceneParams) {
+function updateScene(params: SceneParams) {
   try {
     status.textContent = 'Generating geometry...';
     
     // Create the scene from my-3d-app
-    const manifoldScene = await createScene(params);
+    // Pass the Manifold class that was initialized once
+    const manifoldScene = createScene(ManifoldClass, params);
     
     // Convert to Three.js geometry
     const geometry = manifoldToThreeGeometry(manifoldScene);
@@ -154,8 +159,24 @@ function animate() {
 
 // Initialize
 async function init() {
-  await updateScene(currentParams);
-  animate();
+  try {
+    status.textContent = 'Initializing WASM module...';
+    
+    // Initialize WASM module ONCE for the entire application
+    // This is the key optimization - only one WASM instance
+    const wasm = await Module();
+    wasm.setup();
+    ManifoldClass = wasm.Manifold;
+    
+    status.textContent = 'WASM initialized. Generating scene...';
+    
+    // Now we can create scenes without re-initializing WASM
+    updateScene(currentParams);
+    animate();
+  } catch (error) {
+    console.error('Initialization error:', error);
+    status.textContent = `Initialization failed: ${error}`;
+  }
 }
 
 init();

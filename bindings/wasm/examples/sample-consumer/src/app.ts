@@ -14,21 +14,28 @@ export interface SceneParams {
 }
 
 /**
- * Create a scene that combines shapes from the library with custom shapes
+ * Create a scene that combines shapes from the library with custom shapes.
+ * 
+ * The Manifold class should be passed in from the caller who has already
+ * initialized the WASM module. This ensures only one WASM instance across
+ * the entire application.
+ * 
+ * @param Manifold - The Manifold class from an initialized WASM module
+ * @param params - Scene configuration parameters
+ * @returns A Manifold object containing the complete scene
  */
-export async function createScene(params: SceneParams = {}) {
+export function createScene(
+  Manifold: any,
+  params: SceneParams = {}
+) {
   const {
     libraryRadiusScale = 1.0,
     sphereCount = 6
   } = params;
 
-  // Initialize the WASM module
-  const wasm = await Module();
-  wasm.setup();
-  const { Manifold } = wasm;
-
   // Use the library to create a cube with hole
-  const cubeWithHole = await createCubeWithHole({
+  // Pass the Manifold class to avoid re-initializing WASM
+  const cubeWithHole = createCubeWithHole(Manifold, {
     cubeSize: [100, 100, 100],
     cylinderRadius: 30,
     cylinderHeight: 120,
@@ -62,7 +69,13 @@ async function main() {
   console.log('Creating a scene with shapes from library and custom shapes...');
 
   try {
-    const scene = await createScene({
+    // Initialize WASM module once at the application level
+    const wasm = await Module();
+    wasm.setup();
+    const { Manifold } = wasm;
+
+    // Pass the Manifold class to createScene
+    const scene = createScene(Manifold, {
       libraryRadiusScale: 1.0,
       sphereCount: 6
     });

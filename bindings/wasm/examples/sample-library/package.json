@@ -16,7 +16,7 @@
   ],
   "author": "",
   "license": "MIT",
-  "dependencies": {
+  "peerDependencies": {
     "manifold-3d": "^3.3.2"
   },
   "devDependencies": {
