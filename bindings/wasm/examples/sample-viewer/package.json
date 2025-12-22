@@ -1,0 +1,27 @@
+{
+  "name": "my-3d-viewer",
+  "version": "1.0.0",
+  "description": "A three.js viewer that renders shapes from my-3d-app",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview"
+  },
+  "keywords": [
+    "manifold",
+    "3d",
+    "three.js"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "my-3d-app": "file:../sample-consumer",
+    "three": "^0.160.0"
+  },
+  "devDependencies": {
+    "@types/three": "^0.160.0",
+    "typescript": "^5.0.0",
+    "vite": "^5.0.0"
+  }
+}

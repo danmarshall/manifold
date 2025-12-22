@@ -1,6 +1,6 @@
-# Sample Projects: Library and Consumer
+# Sample Projects: Library, Consumer, and Viewer
 
-This directory contains two sample projects that demonstrate how to use `manifold-3d` from npm in a library and how to consume that library in another project.
+This directory contains three sample projects that demonstrate how to use `manifold-3d` from npm in a library, consume that library in another project, and visualize the results with Three.js.
 
 ## Project Overview
 
@@ -9,19 +9,55 @@ A library that uses `manifold-3d` to create reusable 3D shapes.
 
 **Key Features:**
 - Uses `manifold-3d` as a dependency
-- Exports a function `createCubeWithHole()` that subtracts a cylinder from a cube
+- Exports `createCubeWithHole()` that subtracts a cylinder from a cube
+- Supports a `radiusScale` parameter for controlling cylinder size
 - Can be published to npm
 - Provides TypeScript types
 
 ### 2. sample-consumer (`my-3d-app`)
-An application that uses the `my-manifold-shapes` library.
+An application that uses the `my-manifold-shapes` library and adds its own shapes.
 
 **Key Features:**
 - Depends on `my-manifold-shapes` (locally via file path)
-- Imports and uses the library's functions
+- Creates its own shapes (ring of spheres)
+- Combines library shapes with custom shapes into a scene
+- Exports `createScene()` function with parameters
 - Demonstrates the dependency chain: app → library → manifold-3d
 
+### 3. sample-viewer (`my-3d-viewer`)
+A Three.js-based web viewer that renders the scene from `my-3d-app`.
+
+**Key Features:**
+- Depends on `my-3d-app`
+- Real-time Three.js rendering with lighting
+- Interactive UI with sliders for parameters:
+  - Library cylinder radius scale (0.1 to 2.0)
+  - Sphere count (1 to 12)
+- Auto-rotating scene
+- Uses Vite for development
+
 ## Quick Start
+
+### Full Stack Setup
+
+```bash
+# Step 1: Build the library
+cd sample-library
+npm install && npm run build
+
+# Step 2: Build the consumer
+cd ../sample-consumer
+npm install && npm run build
+
+# Step 3: Run the viewer
+cd ../sample-viewer
+npm install
+npm run dev
+```
+
+Then open http://localhost:3000 in your browser to see the interactive 3D viewer!
+
+## Alternative: Build Each Project Separately
 
 ### Step 1: Build the Library
 
@@ -47,14 +83,22 @@ npm start
 
 Expected output:
 ```
-Creating a cube with a hole using my-manifold-shapes library...
-Shape created successfully!
-Shape type: Manifold
+Creating a scene with shapes from library and custom shapes...
+Scene created successfully!
 Number of vertices: [some number]
 Number of triangles: [some number]
-Scaled shape vertices: [some number]
 Done!
 ```
+
+### Step 3: Run the Viewer (Optional)
+
+```bash
+cd sample-viewer
+npm install
+npm run dev
+```
+
+Then open http://localhost:3000 to see the interactive Three.js viewer with parameter sliders.
 
 ## How It Works
 
@@ -120,15 +164,39 @@ async function main() {
 
 ## Dependency Chain
 
+### Complete Stack (All Three Projects)
+
 ```
+my-3d-viewer (sample-viewer)
+  ↓ imports createScene from
 my-3d-app (sample-consumer)
-  ↓ imports from
+  ↓ imports createCubeWithHole from
 my-manifold-shapes (sample-library)
   ↓ depends on
 manifold-3d (npm package)
   ↓ contains
 manifold.wasm (WebAssembly binary)
 ```
+
+### Parameter Flow
+
+```
+User adjusts sliders in viewer
+  ↓
+viewer.ts calls createScene({ libraryRadiusScale, sphereCount })
+  ↓
+sample-consumer creates spheres (sphereCount) and calls library
+  ↓
+sample-library creates cube with scaled cylinder (radiusScale)
+  ↓
+Results flow back up: Manifold → Three.js Geometry → Rendered scene
+```
+
+### Technology Stack
+
+- **sample-library**: TypeScript, manifold-3d (WASM)
+- **sample-consumer**: TypeScript, manifold-3d (via library)
+- **sample-viewer**: TypeScript, Three.js, Vite
 
 ## Publishing to npm
 

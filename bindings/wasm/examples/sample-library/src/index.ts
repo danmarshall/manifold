@@ -1,19 +1,33 @@
 // Library that creates shapes using manifold-3d
 import Module from 'manifold-3d';
 
+export interface CubeWithHoleParams {
+  cubeSize?: [number, number, number];
+  cylinderRadius?: number;
+  cylinderHeight?: number;
+  /**
+   * Scale factor for the cylinder radius (0.1 to 2.0)
+   * This parameter can be controlled by a slider in UI
+   */
+  radiusScale?: number;
+}
+
 /**
  * Create a cube with a cylinder subtracted from it.
  * 
- * @param cubeSize - Size of the cube [width, depth, height]
- * @param cylinderRadius - Radius of the cylinder to subtract
- * @param cylinderHeight - Height of the cylinder (should be > cubeSize[2])
+ * @param params - Configuration parameters
  * @returns A Manifold object with the cylinder subtracted from the cube
  */
 export async function createCubeWithHole(
-  cubeSize: [number, number, number] = [100, 100, 100],
-  cylinderRadius: number = 30,
-  cylinderHeight: number = 120
+  params: CubeWithHoleParams = {}
 ) {
+  const {
+    cubeSize = [100, 100, 100],
+    cylinderRadius = 30,
+    cylinderHeight = 120,
+    radiusScale = 1.0
+  } = params;
+
   // Initialize the WASM module
   const wasm = await Module();
   wasm.setup();
@@ -22,8 +36,9 @@ export async function createCubeWithHole(
   // Create a cube centered at origin
   const cube = Manifold.cube(cubeSize, true);
 
-  // Create a cylinder along the Z-axis
-  const cylinder = Manifold.cylinder(cylinderHeight, cylinderRadius, cylinderRadius);
+  // Create a cylinder along the Z-axis with scaled radius
+  const scaledRadius = cylinderRadius * radiusScale;
+  const cylinder = Manifold.cylinder(cylinderHeight, scaledRadius, scaledRadius);
 
   // Subtract the cylinder from the cube
   const result = cube.subtract(cylinder);
