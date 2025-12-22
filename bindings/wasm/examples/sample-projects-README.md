@@ -470,6 +470,156 @@ If you don't want to use TypeScript:
    }
    ```
 
+## Performance: Memoization vs Re-evaluation
+
+### Question: Does every parameter change require full re-evaluation?
+
+**Short answer:** With the **direct WASM approach** (what these samples use), you have full control and can implement memoization. With the **bundled approach**, yes, the entire code is re-evaluated on each parameter change.
+
+### Direct WASM Approach (Sample Projects) - Memoization Possible
+
+In our sample projects, when a slider changes, `updateScene()` is called which:
+
+```typescript
+function updateScene(params: SceneParams) {
+  // Re-creates geometry with new parameters
+  const manifoldScene = createScene(ManifoldClass, params);
+  // Convert to Three.js and display
+  const geometry = manifoldToThreeGeometry(manifoldScene);
+  // ...
+}
+```
+
+**Currently:** The entire scene is regenerated. But you could implement **memoization** or **caching**:
+
+```typescript
+// Cache unchanged parts
+let cachedLibraryShape = null;
+let lastLibraryParams = null;
+
+function updateScene(params: SceneParams) {
+  // Only regenerate library shape if its parameters changed
+  if (!cachedLibraryShape || 
+      lastLibraryParams.radiusScale !== params.libraryRadiusScale) {
+    cachedLibraryShape = createCubeWithHole(ManifoldClass, params.libraryRadiusScale);
+    lastLibraryParams = { radiusScale: params.libraryRadiusScale };
+  }
+  
+  // Only regenerate spheres (they always change with sphereCount)
+  const spheres = createSphereRing(ManifoldClass, params.sphereCount);
+  
+  // Combine cached library shape with new spheres
+  const scene = cachedLibraryShape.add(spheres);
+  // ...
+}
+```
+
+**Benefits of Direct WASM:**
+- ✅ **Selective recomputation**: Only regenerate what changed
+- ✅ **Incremental updates**: Modify existing geometry instead of recreating
+- ✅ **Caching**: Store intermediate results
+- ✅ **Full control**: You write the optimization logic
+
+**For a complex model like a bicycle:**
+```typescript
+// Cache all the unchanging parts
+const cachedFrame = createFrame(Manifold, frameParams);
+const cachedWheels = createWheels(Manifold, wheelParams);
+
+// When handlebar angle changes, only regenerate handlebars
+function updateHandlebars(angle) {
+  const newHandlebars = createHandlebars(Manifold, angle);
+  // Combine with cached parts
+  return cachedFrame.add(cachedWheels).add(newHandlebars);
+}
+```
+
+### Bundled Approach (ManifoldCAD.org) - Full Re-evaluation
+
+In the bundled/interpreted method, your code is a **string** that gets **re-bundled and re-evaluated** on every parameter change:
+
+```typescript
+// User code as string
+const code = `
+import {Manifold} from 'manifold-3d/manifoldCAD';
+
+export default function(params) {
+  const cube = Manifold.cube([100, 100, 100]);
+  const cylinder = Manifold.cylinder(params.height, params.radius);
+  return cube.subtract(cylinder);
+}
+`;
+
+// On every parameter change:
+// 1. Bundle the code again (esbuild)
+// 2. Execute the bundled code (AsyncFunction)
+// 3. Call the exported function with new params
+const result = await evaluate(code, newParams);
+```
+
+**Characteristics:**
+- ❌ **Full re-execution**: Entire script runs from scratch
+- ❌ **No caching**: Can't persist objects between evaluations
+- ❌ **Bundling overhead**: esbuild runs on every change
+- ✅ **Simple**: No complex state management needed
+- ✅ **Isolated**: Each evaluation is independent
+
+**Why is this OK for ManifoldCAD.org?**
+- Most models are relatively small
+- Manifold operations are very fast (C++ in WASM)
+- The bundling is cached when possible
+- It's simpler to reason about - no stale state issues
+
+### Recommendation for Complex Models
+
+For a bicycle or other complex multi-part models with many parameters:
+
+1. **Use Direct WASM approach** (like these samples)
+2. **Implement smart caching** based on what actually changed
+3. **Only recompute affected parts**
+4. **Pass the shared WASM instance** to all functions
+
+Example architecture:
+```typescript
+class BicycleModel {
+  constructor(ManifoldClass) {
+    this.Manifold = ManifoldClass;
+    this.cache = {
+      frame: null,
+      wheels: null,
+      handlebars: null,
+      // ... other parts
+    };
+  }
+  
+  updateFrame(params) {
+    // Only frame changes
+    this.cache.frame = buildFrame(this.Manifold, params);
+    return this.getFullModel();
+  }
+  
+  updateWheels(params) {
+    // Only wheels change
+    this.cache.wheels = buildWheels(this.Manifold, params);
+    return this.getFullModel();
+  }
+  
+  getFullModel() {
+    // Combine all cached parts
+    let model = this.cache.frame;
+    if (this.cache.wheels) model = model.add(this.cache.wheels);
+    if (this.cache.handlebars) model = model.add(this.cache.handlebars);
+    return model;
+  }
+}
+```
+
+This gives you the **best of both worlds**:
+- ✅ Single WASM instance (efficient memory use)
+- ✅ Selective recomputation (fast updates)
+- ✅ Full control over optimization
+- ✅ Works with complex dependency graphs
+
 ## More Examples
 
 For more examples of using manifold-3d, see:

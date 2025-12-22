@@ -30,6 +30,7 @@ camera.lookAt(0, 0, 0);
 // Set up lighting - same as bindings/wasm/examples/three.ts
 // PointLight attached to camera BEFORE adding camera to scene
 const light = new THREE.PointLight(0xffffff, 1);
+light.position.set(0, 0, 0); // Position at camera origin
 camera.add(light);
 scene.add(camera);
 
