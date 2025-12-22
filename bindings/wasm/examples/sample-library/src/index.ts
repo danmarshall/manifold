@@ -33,7 +33,7 @@ export function createCubeWithHole(
   const {
     cubeSize = [100, 100, 100],
     cylinderRadius = 30,
-    cylinderHeight = 120,
+    cylinderHeight = 150, // Taller than cube to ensure it goes all the way through
     radiusScale = 1.0
   } = params;
 
@@ -41,6 +41,7 @@ export function createCubeWithHole(
   const cube = ManifoldClass.cube(cubeSize, true);
 
   // Create a cylinder along the Z-axis with scaled radius
+  // Make it taller than the cube so it goes all the way through
   const scaledRadius = cylinderRadius * radiusScale;
   const cylinder = ManifoldClass.cylinder(cylinderHeight, scaledRadius, scaledRadius);
   // Subtract the cylinder from the cube

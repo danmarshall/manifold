@@ -36,19 +36,13 @@ controls.minDistance = 100;
 controls.maxDistance = 500;
 controls.maxPolarAngle = Math.PI;
 
-// Set up lights with conventional three-point lighting
-const ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
+// Set up simple, conventional lighting
+const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
 scene.add(ambientLight);
 
-// Key light
-const keyLight = new THREE.DirectionalLight(0xffffff, 0.8);
-keyLight.position.set(5, 5, 5);
-scene.add(keyLight);
-
-// Fill light
-const fillLight = new THREE.DirectionalLight(0xffffff, 0.3);
-fillLight.position.set(-3, 0, -3);
-scene.add(fillLight);
+const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+directionalLight.position.set(1, 1, 1).normalize();
+scene.add(directionalLight);
 
 // Set up renderer
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
@@ -81,9 +75,11 @@ function manifoldToThreeGeometry(manifold: InstanceType<typeof Manifold>): THREE
   return geometry;
 }
 
-// Create material with flat shading for clearer edges
-const material = new THREE.MeshLambertMaterial({
+// Create material - simple flat color with standard shading
+const material = new THREE.MeshStandardMaterial({
   color: 0x4a90e2,
+  roughness: 0.7,
+  metalness: 0.0,
   flatShading: false,
 });
 
