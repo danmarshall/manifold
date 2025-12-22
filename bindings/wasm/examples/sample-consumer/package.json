@@ -14,6 +14,9 @@
   ],
   "author": "",
   "license": "MIT",
+  "peerDependencies": {
+    "manifold-3d": "^3.3.2"
+  },
   "dependencies": {
     "my-manifold-shapes": "file:../sample-library"
   },
