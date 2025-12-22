@@ -1,20 +1,7 @@
 // Library that creates shapes using manifold-3d
 // The WASM module should be initialized once by the application and passed in
 
-// Type for Manifold class constructor
-type ManifoldConstructor = {
-  cube: (size: [number, number, number], center?: boolean) => ManifoldInstance;
-  cylinder: (height: number, radiusLow: number, radiusHigh?: number, circularSegments?: number) => ManifoldInstance;
-  [key: string]: any;
-};
-
-// Type for Manifold instance
-type ManifoldInstance = {
-  add: (other: ManifoldInstance) => ManifoldInstance;
-  subtract: (other: ManifoldInstance) => ManifoldInstance;
-  translate: (v: [number, number, number] | number[]) => ManifoldInstance;
-  [key: string]: any;
-};
+import { Manifold } from 'manifold-3d';
 
 export interface CubeWithHoleParams {
   cubeSize?: [number, number, number];
@@ -38,9 +25,9 @@ export interface CubeWithHoleParams {
  * @returns A Manifold object with the cylinder subtracted from the cube
  */
 export function createCubeWithHole(
-  Manifold: ManifoldConstructor,
+  Manifold: typeof Manifold,
   params: CubeWithHoleParams = {}
-): ManifoldInstance {
+): Manifold {
   const {
     cubeSize = [100, 100, 100],
     cylinderRadius = 30,

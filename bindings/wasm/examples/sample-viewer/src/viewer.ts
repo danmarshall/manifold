@@ -1,33 +1,8 @@
 // Three.js viewer for shapes created by my-3d-app
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
-import Module from 'manifold-3d';
+import Module, { Manifold } from 'manifold-3d';
 import { createScene, SceneParams } from 'my-3d-app';
-
-// Type for Manifold class constructor
-type ManifoldConstructor = {
-  cube: (size: [number, number, number], center?: boolean) => ManifoldInstance;
-  cylinder: (height: number, radiusLow: number, radiusHigh?: number, circularSegments?: number) => ManifoldInstance;
-  sphere: (radius: number, circularSegments?: number) => ManifoldInstance;
-  [key: string]: any;
-};
-
-// Type for Manifold instance
-type ManifoldInstance = {
-  add: (other: ManifoldInstance) => ManifoldInstance;
-  subtract: (other: ManifoldInstance) => ManifoldInstance;
-  translate: (v: [number, number, number] | number[]) => ManifoldInstance;
-  rotate: (v: [number, number, number]) => ManifoldInstance;
-  scale: (v: [number, number, number] | number[]) => ManifoldInstance;
-  getMesh: () => {
-    vertProperties: Float32Array | number[];
-    triVerts: Uint32Array | number[];
-  };
-  delete: () => void;
-  numVert: () => number;
-  numTri: () => number;
-  [key: string]: any;
-};
 
 // Get canvas and controls
 const canvas = document.getElementById('canvas') as HTMLCanvasElement;
@@ -81,7 +56,7 @@ window.addEventListener('resize', () => {
 });
 
 // Convert Manifold mesh to Three.js geometry
-function manifoldToThreeGeometry(manifold: ManifoldInstance): THREE.BufferGeometry {
+function manifoldToThreeGeometry(manifold: Manifold): THREE.BufferGeometry {
   const mesh = manifold.getMesh();
   const geometry = new THREE.BufferGeometry();
   
@@ -99,11 +74,11 @@ function manifoldToThreeGeometry(manifold: ManifoldInstance): THREE.BufferGeomet
   return geometry;
 }
 
-// Create material
-const material = new THREE.MeshStandardMaterial({
+// Create material with better lighting characteristics
+const material = new THREE.MeshPhongMaterial({
   color: 0x4a90e2,
-  metalness: 0.3,
-  roughness: 0.4,
+  shininess: 10,
+  specular: 0x111111,
   flatShading: false,
 });
 
@@ -117,7 +92,7 @@ let currentParams: SceneParams = {
 };
 
 // WASM module - initialized once for the entire application
-let ManifoldClass: ManifoldConstructor | null = null;
+let ManifoldClass: typeof Manifold | null = null;
 
 // Update scene with new parameters
 function updateScene(params: SceneParams) {
@@ -192,7 +167,7 @@ async function init() {
     // This is the key optimization - only one WASM instance
     const wasm = await Module();
     wasm.setup();
-    ManifoldClass = wasm.Manifold as ManifoldConstructor;
+    ManifoldClass = wasm.Manifold;
     
     status.textContent = 'WASM initialized. Generating scene...';
     

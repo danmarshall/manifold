@@ -1,22 +1,6 @@
 // Application that consumes the my-manifold-shapes library
 import { createCubeWithHole, CubeWithHoleParams } from 'my-manifold-shapes';
-import Module from 'manifold-3d';
-
-// Type for Manifold class constructor
-type ManifoldConstructor = {
-  cube: (size: [number, number, number], center?: boolean) => ManifoldInstance;
-  cylinder: (height: number, radiusLow: number, radiusHigh?: number, circularSegments?: number) => ManifoldInstance;
-  sphere: (radius: number, circularSegments?: number) => ManifoldInstance;
-  [key: string]: any;
-};
-
-// Type for Manifold instance
-type ManifoldInstance = {
-  add: (other: ManifoldInstance) => ManifoldInstance;
-  subtract: (other: ManifoldInstance) => ManifoldInstance;
-  translate: (v: [number, number, number] | number[]) => ManifoldInstance;
-  [key: string]: any;
-};
+import Module, { Manifold } from 'manifold-3d';
 
 export interface SceneParams {
   /**
@@ -41,9 +25,9 @@ export interface SceneParams {
  * @returns A Manifold object containing the complete scene
  */
 export function createScene(
-  Manifold: ManifoldConstructor,
+  Manifold: typeof Manifold,
   params: SceneParams = {}
-): ManifoldInstance {
+): Manifold {
   const {
     libraryRadiusScale = 1.0,
     sphereCount = 6
