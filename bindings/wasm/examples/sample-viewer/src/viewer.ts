@@ -1,7 +1,7 @@
 // Three.js viewer for shapes created by my-3d-app
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
-import Module, { Manifold } from 'manifold-3d';
+import Module from 'manifold-3d';
 import { createScene, SceneParams } from 'my-3d-app';
 
 // Get canvas and controls
@@ -56,7 +56,7 @@ window.addEventListener('resize', () => {
 });
 
 // Convert Manifold mesh to Three.js geometry
-function manifoldToThreeGeometry(manifold: Manifold): THREE.BufferGeometry {
+function manifoldToThreeGeometry(manifold: any): THREE.BufferGeometry {
   const mesh = manifold.getMesh();
   const geometry = new THREE.BufferGeometry();
   
@@ -92,7 +92,7 @@ let currentParams: SceneParams = {
 };
 
 // WASM module - initialized once for the entire application
-let ManifoldClass: typeof Manifold | null = null;
+let ManifoldClass: any = null;
 
 // Update scene with new parameters
 function updateScene(params: SceneParams) {
