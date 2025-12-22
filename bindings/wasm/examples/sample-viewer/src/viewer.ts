@@ -2,7 +2,8 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import Module from 'manifold-3d';
-import { createScene, SceneParams, ManifoldStaticExtended, ManifoldInstance } from 'my-3d-app';
+import { Manifold } from 'manifold-3d/lib/manifoldCAD.js'
+import { createScene, SceneParams } from 'my-3d-app';
 
 // Get canvas and controls
 const canvas = document.getElementById('canvas') as HTMLCanvasElement;
@@ -62,21 +63,21 @@ window.addEventListener('resize', () => {
 });
 
 // Convert Manifold mesh to Three.js geometry
-function manifoldToThreeGeometry(manifold: ManifoldInstance): THREE.BufferGeometry {
+function manifoldToThreeGeometry(manifold: InstanceType<typeof Manifold>): THREE.BufferGeometry {
   const mesh = manifold.getMesh();
   const geometry = new THREE.BufferGeometry();
-  
+
   // Get vertex positions (numProp=3 means xyz)
   const positions = new Float32Array(mesh.vertProperties);
   geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-  
+
   // Get triangle indices
   const indices = new Uint32Array(mesh.triVerts);
   geometry.setIndex(new THREE.BufferAttribute(indices, 1));
-  
+
   // Compute normals for proper lighting
   geometry.computeVertexNormals();
-  
+
   return geometry;
 }
 
@@ -96,37 +97,37 @@ let currentParams: SceneParams = {
 };
 
 // WASM module - initialized once for the entire application
-let ManifoldClass: ManifoldStaticExtended | null = null;
+let ManifoldClass: typeof Manifold | null = null;
 
 // Update scene with new parameters
 function updateScene(params: SceneParams) {
   try {
     status.textContent = 'Generating geometry...';
-    
+
     if (!ManifoldClass) {
       throw new Error('Manifold class not initialized');
     }
-    
+
     // Create the scene from my-3d-app
     // Pass the Manifold class that was initialized once
     const manifoldScene = createScene(ManifoldClass, params);
-    
+
     // Convert to Three.js geometry
     const geometry = manifoldToThreeGeometry(manifoldScene);
-    
+
     // Clean up old mesh
     if (sceneMesh) {
       sceneMesh.geometry.dispose();
       scene.remove(sceneMesh);
     }
-    
+
     // Create new mesh
     sceneMesh = new THREE.Mesh(geometry, material);
     scene.add(sceneMesh);
-    
+
     // Clean up Manifold object
     manifoldScene.delete();
-    
+
     status.textContent = `Vertices: ${geometry.attributes.position.count}, Triangles: ${geometry.index!.count / 3}`;
   } catch (error) {
     console.error('Error updating scene:', error);
@@ -155,10 +156,10 @@ sphereCountSlider.addEventListener('input', () => {
 // Animation loop
 function animate() {
   requestAnimationFrame(animate);
-  
+
   // Update orbit controls
   controls.update();
-  
+
   renderer.render(scene, camera);
 }
 
@@ -166,15 +167,15 @@ function animate() {
 async function init() {
   try {
     status.textContent = 'Initializing WASM module...';
-    
+
     // Initialize WASM module ONCE for the entire application
     // This is the key optimization - only one WASM instance
     const wasm = await Module();
     wasm.setup();
     ManifoldClass = wasm.Manifold;
-    
+
     status.textContent = 'WASM initialized. Generating scene...';
-    
+
     // Now we can create scenes without re-initializing WASM
     updateScene(currentParams);
     animate();

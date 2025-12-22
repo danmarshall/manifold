@@ -1,10 +1,7 @@
-// Application that consumes the my-manifold-shapes library
-import { createCubeWithHole, ManifoldStatic, ManifoldInstance } from 'my-manifold-shapes';
+import { Manifold } from 'manifold-3d/lib/manifoldCAD.js'
 
-// Extend the Manifold static type with sphere method
-export type ManifoldStaticExtended = ManifoldStatic & {
-  sphere(radius: number, circularSegments?: number): ManifoldInstance;
-};
+// Application that consumes the my-manifold-shapes library
+import { createCubeWithHole } from 'my-manifold-shapes';
 
 export interface SceneParams {
   /**
@@ -29,9 +26,9 @@ export interface SceneParams {
  * @returns A Manifold object containing the complete scene
  */
 export function createScene(
-  ManifoldClass: ManifoldStaticExtended,
+  ManifoldClass: typeof Manifold,
   params: SceneParams = {}
-): ManifoldInstance {
+) {
   const {
     libraryRadiusScale = 1.0,
     sphereCount = 6
@@ -50,7 +47,7 @@ export function createScene(
   // Create a ring of small spheres around the cube
   const sphereRadius = 10;
   const ringRadius = 80;
-  
+
   let spheres = ManifoldClass.sphere(sphereRadius, 32);
   spheres = spheres.translate([ringRadius, 0, 0]);
 

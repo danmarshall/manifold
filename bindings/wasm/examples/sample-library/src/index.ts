@@ -1,21 +1,9 @@
+import { Manifold } from 'manifold-3d/lib/manifoldCAD.js'
+
 // Library that creates shapes using manifold-3d
 // The WASM module should be initialized once by the application and passed in
 
 // Type representing the static Manifold class with constructor methods
-export type ManifoldStatic = {
-  cube(size?: readonly [number, number, number] | number, center?: boolean): ManifoldInstance;
-  cylinder(height: number, radiusLow: number, radiusHigh?: number, circularSegments?: number, center?: boolean): ManifoldInstance;
-  sphere(radius: number, circularSegments?: number): ManifoldInstance;
-};
-
-// Type representing a Manifold instance with methods
-export type ManifoldInstance = {
-  add(other: ManifoldInstance): ManifoldInstance;
-  subtract(other: ManifoldInstance): ManifoldInstance;
-  translate(v: readonly [number, number, number]): ManifoldInstance;
-  getMesh(): { vertProperties: Float32Array; triVerts: Uint32Array };
-  delete(): void;
-};
 
 export interface CubeWithHoleParams {
   cubeSize?: [number, number, number];
@@ -39,9 +27,9 @@ export interface CubeWithHoleParams {
  * @returns A Manifold object with the cylinder subtracted from the cube
  */
 export function createCubeWithHole(
-  ManifoldClass: ManifoldStatic,
+  ManifoldClass: typeof Manifold,
   params: CubeWithHoleParams = {}
-): ManifoldInstance {
+) {
   const {
     cubeSize = [100, 100, 100],
     cylinderRadius = 30,
@@ -55,7 +43,6 @@ export function createCubeWithHole(
   // Create a cylinder along the Z-axis with scaled radius
   const scaledRadius = cylinderRadius * radiusScale;
   const cylinder = ManifoldClass.cylinder(cylinderHeight, scaledRadius, scaledRadius);
-
   // Subtract the cylinder from the cube
   const result = cube.subtract(cylinder);
 
