@@ -36,13 +36,11 @@ controls.minDistance = 100;
 controls.maxDistance = 500;
 controls.maxPolarAngle = Math.PI;
 
-// Set up simple, conventional lighting
-const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
-scene.add(ambientLight);
-
-const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
-directionalLight.position.set(1, 1, 1).normalize();
-scene.add(directionalLight);
+// Set up lighting - same as bindings/wasm/examples/three.ts
+// PointLight attached to camera
+const light = new THREE.PointLight(0xffffff, 1);
+camera.add(light);
+scene.add(camera);
 
 // Set up renderer
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
@@ -75,12 +73,10 @@ function manifoldToThreeGeometry(manifold: InstanceType<typeof Manifold>): THREE
   return geometry;
 }
 
-// Create material - simple flat color with standard shading
-const material = new THREE.MeshStandardMaterial({
+// Create material - same as bindings/wasm/examples/three.ts
+const material = new THREE.MeshLambertMaterial({
   color: 0x4a90e2,
-  roughness: 0.7,
-  metalness: 0.0,
-  flatShading: false,
+  flatShading: true,
 });
 
 // Scene mesh object
