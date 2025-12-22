@@ -2,7 +2,7 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import Module from 'manifold-3d';
-import { createScene, SceneParams } from 'my-3d-app';
+import { createScene, SceneParams, ManifoldStaticExtended, ManifoldInstance } from 'my-3d-app';
 
 // Get canvas and controls
 const canvas = document.getElementById('canvas') as HTMLCanvasElement;
@@ -35,13 +35,19 @@ controls.minDistance = 100;
 controls.maxDistance = 500;
 controls.maxPolarAngle = Math.PI;
 
-// Set up lights
-const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+// Set up lights with conventional three-point lighting
+const ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
 scene.add(ambientLight);
 
-const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
-directionalLight.position.set(1, 1, 1);
-scene.add(directionalLight);
+// Key light
+const keyLight = new THREE.DirectionalLight(0xffffff, 0.8);
+keyLight.position.set(5, 5, 5);
+scene.add(keyLight);
+
+// Fill light
+const fillLight = new THREE.DirectionalLight(0xffffff, 0.3);
+fillLight.position.set(-3, 0, -3);
+scene.add(fillLight);
 
 // Set up renderer
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
@@ -56,7 +62,7 @@ window.addEventListener('resize', () => {
 });
 
 // Convert Manifold mesh to Three.js geometry
-function manifoldToThreeGeometry(manifold: any): THREE.BufferGeometry {
+function manifoldToThreeGeometry(manifold: ManifoldInstance): THREE.BufferGeometry {
   const mesh = manifold.getMesh();
   const geometry = new THREE.BufferGeometry();
   
@@ -74,11 +80,9 @@ function manifoldToThreeGeometry(manifold: any): THREE.BufferGeometry {
   return geometry;
 }
 
-// Create material with better lighting characteristics
-const material = new THREE.MeshPhongMaterial({
+// Create material with flat shading for clearer edges
+const material = new THREE.MeshLambertMaterial({
   color: 0x4a90e2,
-  shininess: 10,
-  specular: 0x111111,
   flatShading: false,
 });
 
@@ -92,7 +96,7 @@ let currentParams: SceneParams = {
 };
 
 // WASM module - initialized once for the entire application
-let ManifoldClass: any = null;
+let ManifoldClass: ManifoldStaticExtended | null = null;
 
 // Update scene with new parameters
 function updateScene(params: SceneParams) {

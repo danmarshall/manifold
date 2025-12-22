@@ -21,6 +21,7 @@
   },
   "devDependencies": {
     "@types/node": "^20.0.0",
+    "manifold-3d": "^3.3.2",
     "typescript": "^5.0.0"
   }
 }
