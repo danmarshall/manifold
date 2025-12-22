@@ -27,7 +27,13 @@ const camera = new THREE.PerspectiveCamera(
 camera.position.set(200, 200, 200);
 camera.lookAt(0, 0, 0);
 
-// Set up orbit controls
+// Set up lighting - same as bindings/wasm/examples/three.ts
+// PointLight attached to camera BEFORE adding camera to scene
+const light = new THREE.PointLight(0xffffff, 1);
+camera.add(light);
+scene.add(camera);
+
+// Set up orbit controls AFTER camera is added to scene
 const controls = new OrbitControls(camera, canvas);
 controls.enableDamping = true;
 controls.dampingFactor = 0.05;
@@ -35,12 +41,6 @@ controls.screenSpacePanning = false;
 controls.minDistance = 100;
 controls.maxDistance = 500;
 controls.maxPolarAngle = Math.PI;
-
-// Set up lighting - same as bindings/wasm/examples/three.ts
-// PointLight attached to camera
-const light = new THREE.PointLight(0xffffff, 1);
-camera.add(light);
-scene.add(camera);
 
 // Set up renderer
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
