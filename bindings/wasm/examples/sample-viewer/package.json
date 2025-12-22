@@ -15,10 +15,8 @@
   ],
   "author": "",
   "license": "MIT",
-  "peerDependencies": {
-    "manifold-3d": "^3.3.2"
-  },
   "dependencies": {
+    "manifold-3d": "^3.3.2",
     "my-3d-app": "file:../sample-consumer",
     "three": "^0.160.0"
   },
