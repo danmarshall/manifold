@@ -198,6 +198,173 @@ Results flow back up: Manifold → Three.js Geometry → Rendered scene
 - **sample-consumer**: TypeScript, manifold-3d (via library)
 - **sample-viewer**: TypeScript, Three.js, Vite
 
+## Two Different Execution Methods
+
+There are **two completely different ways** to use Manifold in JavaScript, and it's important to understand the distinction:
+
+### Method 1: Direct WASM Usage (What These Sample Projects Use)
+
+This is the traditional approach where you directly use the Manifold WASM module:
+
+```typescript
+import Module from 'manifold-3d';
+
+// Initialize WASM
+const wasm = await Module();
+wasm.setup();
+const { Manifold } = wasm;
+
+// Use it directly in your code
+const cube = Manifold.cube([10, 10, 10]);
+const sphere = Manifold.sphere(5);
+const result = cube.subtract(sphere);
+```
+
+**Characteristics:**
+- ✅ Direct access to WASM - no interpretation layer
+- ✅ Full performance - compiled C++ running in WebAssembly
+- ✅ You write the control flow in TypeScript/JavaScript
+- ✅ Can use any npm packages directly (d3, voronoi, lodash, etc.)
+- ✅ Standard npm/Node.js workflow
+- ❌ You manage WASM initialization and memory
+- ❌ Need to manually `delete()` objects
+
+**Example with d3-delaunay for Voronoi:**
+```typescript
+import Module from 'manifold-3d';
+import { Delaunay } from 'd3-delaunay';
+
+const wasm = await Module();
+wasm.setup();
+const { Manifold } = wasm;
+
+// Use d3 for computation
+const points = [[0, 0], [100, 0], [100, 100], [0, 100]];
+const delaunay = Delaunay.from(points);
+const voronoi = delaunay.voronoi([0, 0, 100, 100]);
+
+// Create 3D geometry from Voronoi cells
+for (let i = 0; i < points.length; i++) {
+  const cell = voronoi.cellPolygon(i);
+  // Use Manifold to extrude the polygon...
+}
+```
+
+**This is what you'd use for:**
+- Building applications with Manifold
+- Creating libraries that use Manifold
+- Complex workflows with other JavaScript libraries
+- Full control over the execution
+
+### Method 2: Bundled/Interpreted Code (ManifoldCAD.org)
+
+This is what [ManifoldCAD.org](https://manifoldcad.org) and the `manifold-cad` CLI use:
+
+```typescript
+// Your code as a STRING
+const code = `
+import {Manifold} from 'manifold-3d/manifoldCAD';
+import {Delaunay} from 'd3-delaunay';
+
+const points = [[0, 0], [100, 0], [100, 100], [0, 100]];
+const delaunay = Delaunay.from(points);
+
+// ... create geometry
+
+export default myShape;
+`;
+
+// The code is bundled and evaluated
+import {evaluate} from 'manifold-3d/lib/worker.js';
+const doc = await evaluate(code);
+```
+
+**What happens internally:**
+1. Your code string goes through **esbuild bundler**
+   - TypeScript → JavaScript
+   - `import` statements resolved from CDN
+   - All dependencies bundled together
+   - Source maps generated
+2. Bundled code is executed using **AsyncFunction constructor**
+   - Similar to `eval()` but async
+   - Runs in isolated context
+   - Has access to pre-initialized Manifold WASM
+3. Result exported as glTF document
+
+**Characteristics:**
+- ✅ Code is a string - can come from editor, file, database
+- ✅ Automatic bundling of dependencies from CDN
+- ✅ WASM initialization handled for you
+- ✅ Memory management handled automatically
+- ✅ Works in browser without build step
+- ❌ Slower - bundling takes time
+- ❌ Extra layer of abstraction
+- ❌ Limited to what the bundler can handle
+
+**Example with d3-delaunay in ManifoldCAD:**
+```typescript
+// This code would be in the ManifoldCAD.org editor
+import {Manifold} from 'manifold-3d/manifoldCAD';
+import {Delaunay} from 'd3-delaunay';  // Fetched from CDN!
+
+const points = Array.from({length: 20}, () => [
+  Math.random() * 100,
+  Math.random() * 100
+]);
+
+const delaunay = Delaunay.from(points);
+const voronoi = delaunay.voronoi([0, 0, 100, 100]);
+
+// Create Voronoi cells as 3D geometry
+let result = null;
+for (let i = 0; i < points.length; i++) {
+  const cell = voronoi.cellPolygon(i);
+  const height = 5 + Math.random() * 10;
+  
+  // Convert polygon to CrossSection and extrude
+  const shape = new CrossSection([cell]).extrude(height);
+  result = result ? result.add(shape) : shape;
+}
+
+export default result;
+```
+
+**This is what you'd use for:**
+- Interactive web editors
+- Parametric model servers
+- User-submitted scripts
+- Educational tools
+- Rapid prototyping without build tools
+
+### Key Difference: Is There an Interpreter?
+
+**Method 1 (Direct WASM):** No interpreter! Your TypeScript/JavaScript code runs normally in Node.js or the browser, and calls into WASM directly. You're writing a regular program.
+
+**Method 2 (Bundled):** Sort of! The bundler (esbuild) runs in WASM, and your bundled code is executed via `AsyncFunction` (similar to `eval()`). But it's not a custom interpreter - it's standard JavaScript execution with some context injection.
+
+### Which Method for Complex Dependencies?
+
+**For your d3-voronoi example:**
+
+**Method 1 (Direct):** Perfect! 
+```typescript
+import { Delaunay } from 'd3-delaunay';
+import Module from 'manifold-3d';
+// Use both directly - no bundling, no interpretation
+```
+
+**Method 2 (Bundled):** Also works!
+```typescript
+// In ManifoldCAD.org editor:
+import {Delaunay} from 'd3-delaunay';  // Fetched from jsDelivr CDN
+import {Manifold} from 'manifold-3d/manifoldCAD';
+// Bundler handles everything
+```
+
+Both methods support arbitrary npm packages. The difference is:
+- **Direct**: You manage the build/bundle process
+- **Bundled**: The system manages bundling for you
+
 ## Publishing to npm
 
 ### If you were to publish the library:
