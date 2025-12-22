@@ -1,12 +1,12 @@
 {
   "name": "my-3d-app",
   "version": "1.0.0",
-  "description": "A sample application that consumes a manifold-3d based library",
+  "description": "A library that consumes my-manifold-shapes and creates scenes",
   "main": "dist/app.js",
+  "types": "dist/app.d.ts",
   "type": "module",
   "scripts": {
-    "build": "tsc",
-    "start": "node dist/app.js"
+    "build": "tsc"
   },
   "keywords": [
     "manifold",

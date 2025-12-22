@@ -1,10 +1,19 @@
 # my-3d-app
 
-A sample application that demonstrates how to consume a library built with `manifold-3d`.
+A library that consumes `my-manifold-shapes` and creates complete 3D scenes by combining library shapes with custom geometry.
+
+## Key Architecture
+
+This is a **library**, not a standalone application. It:
+- Consumes `my-manifold-shapes` library
+- Adds its own shapes (ring of spheres)
+- Exports `createScene()` function for use by applications
+- Does NOT initialize WASM - expects caller to pass Manifold class
+- Has `manifold-3d` as a peer dependency
 
 ## Setup
 
-1. First, build the library:
+1. First, build the library it depends on:
    ```bash
    cd ../sample-library
    npm install
@@ -17,23 +26,41 @@ A sample application that demonstrates how to consume a library built with `mani
    npm install
    ```
 
-3. Build the application:
+3. Build this library:
    ```bash
    npm run build
    ```
 
-4. Run the application:
-   ```bash
-   npm start
-   ```
+## Usage
+
+This library exports a `createScene()` function that should be called by your application:
+
+```typescript
+import Module from 'manifold-3d';
+import { createScene } from 'my-3d-app';
+
+// Initialize WASM once in your application
+const wasm = await Module();
+wasm.setup();
+const { Manifold } = wasm;
+
+// Use the library - pass the Manifold class
+const scene = createScene(Manifold, {
+  libraryRadiusScale: 1.2,
+  sphereCount: 8
+});
+
+// scene is a Manifold object you can render or export
+```
 
 ## What This Demonstrates
 
 This project shows how to:
-- Consume a library that uses `manifold-3d`
-- Import and use functions from that library
-- Work with Manifold objects returned by the library
-- The library dependency (`my-manifold-shapes`) handles all the `manifold-3d` initialization
+- Consume a library that uses `manifold-3d` (my-manifold-shapes)
+- Create your own shapes using the shared Manifold class
+- Combine library shapes with custom geometry
+- Export a library function that other applications can use
+- Pass the WASM module through the dependency chain efficiently
 
 ## Project Structure
 

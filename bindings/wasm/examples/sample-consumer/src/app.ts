@@ -64,37 +64,3 @@ export function createScene(
 
   return scene;
 }
-
-async function main() {
-  console.log('Creating a scene with shapes from library and custom shapes...');
-
-  try {
-    // Initialize WASM module once at the application level
-    const wasm = await Module();
-    wasm.setup();
-    const { Manifold } = wasm;
-
-    // Pass the Manifold class to createScene
-    const scene = createScene(Manifold, {
-      libraryRadiusScale: 1.0,
-      sphereCount: 6
-    });
-
-    console.log('Scene created successfully!');
-    console.log('Number of vertices:', scene.numVert());
-    console.log('Number of triangles:', scene.numTri());
-
-    // Clean up
-    scene.delete();
-
-    console.log('Done!');
-  } catch (error) {
-    console.error('Error:', error);
-  }
-}
-
-// Run main if this is the entry point
-// In Node.js with ES modules, check if this module is being run directly
-if (process.argv[1] && import.meta.url.endsWith(process.argv[1].replace(/\\/g, '/'))) {
-  main();
-}
