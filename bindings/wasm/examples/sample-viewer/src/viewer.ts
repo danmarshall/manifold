@@ -45,7 +45,8 @@ window.addEventListener('resize', () => {
 });
 
 // Convert Manifold mesh to Three.js geometry
-function manifoldToThreeGeometry(manifold: any): THREE.BufferGeometry {
+// Note: manifold parameter is a Manifold instance from manifold-3d
+function manifoldToThreeGeometry(manifold: { getMesh: () => any; delete: () => void }): THREE.BufferGeometry {
   const mesh = manifold.getMesh();
   const geometry = new THREE.BufferGeometry();
   

@@ -81,6 +81,7 @@ async function main() {
 }
 
 // Run main if this is the entry point
-if (import.meta.url === `file://${process.argv[1]}`) {
+// In Node.js with ES modules, check if this module is being run directly
+if (process.argv[1] && import.meta.url.endsWith(process.argv[1].replace(/\\/g, '/'))) {
   main();
 }
