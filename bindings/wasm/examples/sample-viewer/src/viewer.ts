@@ -27,11 +27,16 @@ const camera = new THREE.PerspectiveCamera(
 camera.position.set(200, 200, 200);
 camera.lookAt(0, 0, 0);
 
-// Set up lighting - same as bindings/wasm/examples/three.ts
-// PointLight attached to camera BEFORE adding camera to scene
-const light = new THREE.PointLight(0xffffff, 1);
-light.position.set(0, 0, 0); // Position at camera origin
-camera.add(light);
+// Set up lighting
+// Add ambient light for base illumination
+const ambientLight = new THREE.AmbientLight(0xffffff, 0.2);
+scene.add(ambientLight);
+
+// Attach directional light to camera so it moves with the view
+const directionalLight = new THREE.DirectionalLight(0xffffff, 1.3);
+directionalLight.position.set(0, 0, 1); // Position relative to camera
+camera.add(directionalLight);
+
 scene.add(camera);
 
 // Set up orbit controls AFTER camera is added to scene
@@ -68,20 +73,23 @@ function manifoldToThreeGeometry(manifold: InstanceType<typeof Manifold>): THREE
   const indices = new Uint32Array(mesh.triVerts);
   geometry.setIndex(new THREE.BufferAttribute(indices, 1));
 
-  // Compute normals for proper lighting
+  // Compute normals - flat shading is enabled in material
   geometry.computeVertexNormals();
 
   return geometry;
 }
 
-// Create material - same as bindings/wasm/examples/three.ts
-const material = new THREE.MeshLambertMaterial({
-  color: 0x4a90e2,
-  flatShading: true,
+// Create material
+const material = new THREE.MeshStandardMaterial({
+  color: 0xcccccc,
+  roughness: 0.7,
+  metalness: 0.3,
+  flatShading: true, // Prevents smoothing artifacts on boolean operations
 });
 
 // Scene mesh object
 let sceneMesh: THREE.Mesh | null = null;
+let edgesLine: THREE.LineSegments | null = null;
 
 // Current parameters
 let currentParams: SceneParams = {
@@ -113,10 +121,20 @@ function updateScene(params: SceneParams) {
       sceneMesh.geometry.dispose();
       scene.remove(sceneMesh);
     }
+    if (edgesLine) {
+      edgesLine.geometry.dispose();
+      scene.remove(edgesLine);
+    }
 
     // Create new mesh
     sceneMesh = new THREE.Mesh(geometry, material);
     scene.add(sceneMesh);
+
+    // Add edge lines for face distinction
+    const edges = new THREE.EdgesGeometry(geometry, 15); // 15 degree threshold
+    const lineMaterial = new THREE.LineBasicMaterial({ color: 0x000000, linewidth: 1 });
+    edgesLine = new THREE.LineSegments(edges, lineMaterial);
+    scene.add(edgesLine);
 
     // Clean up Manifold object
     manifoldScene.delete();
