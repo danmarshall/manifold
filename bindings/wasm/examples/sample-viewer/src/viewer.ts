@@ -46,7 +46,16 @@ window.addEventListener('resize', () => {
 
 // Convert Manifold mesh to Three.js geometry
 // Note: manifold parameter is a Manifold instance from manifold-3d
-function manifoldToThreeGeometry(manifold: { getMesh: () => any; delete: () => void }): THREE.BufferGeometry {
+// Using a minimal interface since we don't import manifold-3d types in the viewer
+interface ManifoldLike {
+  getMesh: () => {
+    vertProperties: ArrayLike<number>;
+    triVerts: ArrayLike<number>;
+  };
+  delete: () => void;
+}
+
+function manifoldToThreeGeometry(manifold: ManifoldLike): THREE.BufferGeometry {
   const mesh = manifold.getMesh();
   const geometry = new THREE.BufferGeometry();
   
@@ -113,6 +122,9 @@ async function updateScene(params: SceneParams) {
 }
 
 // Set up slider event listeners
+// Note: For production, consider debouncing these events to improve performance
+// with rapid slider movements. Current implementation updates immediately for
+// better responsiveness in this demo.
 radiusScaleSlider.addEventListener('input', () => {
   const value = parseFloat(radiusScaleSlider.value);
   radiusValue.textContent = value.toFixed(2);
