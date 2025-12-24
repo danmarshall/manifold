@@ -54,6 +54,11 @@ const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.setPixelRatio(window.devicePixelRatio);
 
+// Add grid at Z=0
+const gridHelper = new THREE.GridHelper(500, 50, 0x888888, 0xcccccc);
+gridHelper.rotation.x = Math.PI / 2; // Rotate to XY plane (Z=0)
+scene.add(gridHelper);
+
 // Handle window resize
 window.addEventListener('resize', () => {
   camera.aspect = window.innerWidth / window.innerHeight;
