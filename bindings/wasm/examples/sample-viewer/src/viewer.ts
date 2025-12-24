@@ -6,95 +6,67 @@ import { Manifold } from 'manifold-3d/lib/manifoldCAD.js'
 import { createScene, SceneParams } from 'my-3d-app';
 
 /* ========================================================================
- * ADVANCED: Using evaluate() function with Web Workers
+ * ADVANCED: Using evaluate() function
  * ========================================================================
  * 
- * The manifold-3d package includes a powerful evaluate() function in
- * worker.ts that can execute code strings and return geometry.
+ * The evaluate() function from manifold-3d/lib/worker.js can execute code
+ * strings and return geometry. This is useful for dynamic code execution.
  * 
- * This is useful for:
- * - Dynamic code execution (like code editors)
- * - Offloading computation to background threads
- * - Bundling dependencies on-the-fly
- * 
- * Example: Using evaluate() in a Worker
- * 
- * 1. Create a worker file (manifold-worker.ts):
- * 
- *    import { evaluate } from 'manifold-3d/lib/worker.js';
- *    
- *    self.onmessage = async (e) => {
- *      if (e.data.type === 'evaluate') {
- *        try {
- *          const { code, options } = e.data;
- *          
- *          // evaluate() bundles and executes the code string
- *          // Returns a gltf-transform Document
- *          const doc = await evaluate(code, options);
- *          
- *          // Extract mesh data from the document
- *          const root = doc.getRoot();
- *          const scene = root.getDefaultScene();
- *          
- *          self.postMessage({
- *            type: 'result',
- *            document: doc.toJSON() // Send serialized glTF
- *          });
- *        } catch (error) {
- *          self.postMessage({
- *            type: 'error',
- *            message: error.message
- *          });
- *        }
- *      }
- *    };
- * 
- * 2. Use the worker in your viewer:
- * 
- *    const worker = new Worker(new URL('./manifold-worker.ts', import.meta.url), { type: 'module' });
- *    
- *    function evaluateInWorker(code: string, options = {}) {
- *      return new Promise((resolve, reject) => {
- *        worker.onmessage = (e) => {
- *          if (e.data.type === 'result') {
- *            resolve(e.data.document);
- *          } else if (e.data.type === 'error') {
- *            reject(new Error(e.data.message));
- *          }
- *        };
- *        
- *        worker.postMessage({ type: 'evaluate', code, options });
- *      });
- *    }
- *    
- *    // Example usage:
- *    const userCode = `
- *      export default () => {
- *        const { cube, cylinder } = manifold;
- *        const c = cube([100, 100, 100], true);
- *        const cyl = cylinder(150, 30, 30, 32, true);
- *        return c.subtract(cyl);
- *      }
- *    `;
- *    
- *    const gltfDoc = await evaluateInWorker(userCode, {
- *      doNotBundle: false,  // Set true to skip bundling
- *      jsCDN: 'https://esm.sh/',  // CDN for dependencies
- *    });
- *    
- *    // Load the glTF document and render it in Three.js
- *    // (You'd need to parse the glTF JSON and create Three.js meshes)
- * 
- * Benefits of using evaluate() with workers:
- * - Execute arbitrary user code safely in a background thread
- * - Non-blocking UI during complex computations
- * - Automatic dependency bundling
- * - Returns standard glTF format compatible with any renderer
- * 
- * Note: This viewer uses direct WASM calls in the main thread for simplicity.
- * For apps with dynamic code execution or complex models, use evaluate() in workers.
+ * Uncomment the function below to enable evaluate() support in this viewer.
+ * You'll also need to install gltf-transform: npm install @gltf-transform/core
  * 
  * ======================================================================== */
+
+/*
+import { evaluate } from 'manifold-3d/lib/worker.js';
+
+// Stub function to call evaluate() from the worker module
+async function callEvaluate(code: string, options: { doNotBundle?: boolean; jsCDN?: string } = {}) {
+  try {
+    // Call the evaluate function which bundles and executes user code
+    // Returns a gltf-transform Document
+    const doc = await evaluate(code, options);
+    
+    // Convert the Document to JSON format
+    const json = doc.toJSON();
+    
+    // You can now process the glTF JSON to extract mesh data
+    // and create Three.js geometry from it
+    
+    console.log('Evaluate result:', json);
+    return json;
+  } catch (error) {
+    console.error('Evaluate error:', error);
+    throw error;
+  }
+}
+
+// Example usage:
+async function exampleEvaluateUsage() {
+  const userCode = `
+    export default () => {
+      const { cube, cylinder } = manifold;
+      const c = cube([100, 100, 100], true);
+      const cyl = cylinder(150, 30, 30, 32, true);
+      return c.subtract(cyl);
+    }
+  `;
+  
+  try {
+    const gltfData = await callEvaluate(userCode, {
+      doNotBundle: false,  // Set true to skip dependency bundling
+      jsCDN: 'https://esm.sh/',  // CDN for loading dependencies
+    });
+    
+    // Process gltfData and render in Three.js
+    console.log('Generated geometry:', gltfData);
+  } catch (error) {
+    console.error('Failed to evaluate code:', error);
+  }
+}
+
+// Uncomment to test: exampleEvaluateUsage();
+*/
 
 // Get canvas and controls
 const canvas = document.getElementById('canvas') as HTMLCanvasElement;
