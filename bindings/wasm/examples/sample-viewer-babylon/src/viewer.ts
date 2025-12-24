@@ -86,19 +86,35 @@ const mainLight = new HemisphericLight('mainLight', new Vector3(1, 1, 1), scene)
 mainLight.intensity = 0.8;
 mainLight.parent = camera;
 
-// Create ground grid plane using MeshBuilder
+// Create ground grid with straight lines only
 const groundSize = 500;
-const ground = MeshBuilder.CreateGround('ground', { width: groundSize, height: groundSize, subdivisions: 50 }, scene);
+const divisions = 50;
+const step = groundSize / divisions;
+const halfSize = groundSize / 2;
 
-const gridMaterial = new StandardMaterial('gridMaterial', scene);
-gridMaterial.diffuseColor = new Color3(0.5, 0.5, 0.5);
-gridMaterial.specularColor = new Color3(0.1, 0.1, 0.1);
-gridMaterial.alpha = 0.5;
-gridMaterial.wireframe = true;
+const gridPoints: Vector3[][] = [];
 
-ground.material = gridMaterial;
-ground.rotation.x = Math.PI / 2; // Rotate to XY plane
-ground.position.z = 0; // At Z=0 in CAD coordinates
+// Create horizontal lines (along X axis)
+for (let i = 0; i <= divisions; i++) {
+  const y = -halfSize + i * step;
+  gridPoints.push([
+    new Vector3(-halfSize, y, 0),
+    new Vector3(halfSize, y, 0)
+  ]);
+}
+
+// Create vertical lines (along Y axis)
+for (let i = 0; i <= divisions; i++) {
+  const x = -halfSize + i * step;
+  gridPoints.push([
+    new Vector3(x, -halfSize, 0),
+    new Vector3(x, halfSize, 0)
+  ]);
+}
+
+const grid = MeshBuilder.CreateLineSystem('grid', { lines: gridPoints }, scene);
+grid.color = new Color3(0.5, 0.5, 0.5);
+grid.alpha = 0.5;
 
 // Add custom axes at origin with flipped X
 const axisLength = 50;
