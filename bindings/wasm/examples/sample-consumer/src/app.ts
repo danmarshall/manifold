@@ -37,7 +37,7 @@ export function createScene(
   // Use the library to create a cube with hole
   // Pass the Manifold class to avoid re-initializing WASM
   const cubeWithHole = createCubeWithHole(ManifoldClass, {
-    cubeSize: [100, 100, 100],
+    cubeSize: [100, 150, 10],
     cylinderRadius: 30,
     cylinderHeight: 120,
     radiusScale: libraryRadiusScale
