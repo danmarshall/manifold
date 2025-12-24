@@ -1,3 +1,5 @@
+import { Manifold, GLTFNode } from 'manifold-3d/lib/manifoldCAD.js'
+
 // Application that consumes the my-manifold-shapes library
 import { createCubeWithHole } from 'my-manifold-shapes';
 
@@ -23,7 +25,7 @@ export interface SceneParams {
  * @returns A Manifold object representing the rounded frame
  */
 function roundedFrame(
-  ManifoldClass: any,
+  ManifoldClass: typeof Manifold,
   edgeLength: number,
   radius: number,
   circularSegments: number = 0
@@ -58,8 +60,8 @@ function roundedFrame(
  * @returns An array of GLTFNodes with materials for color support
  */
 export function createScene(
-  ManifoldClass: any,
-  GLTFNodeClass: any,
+  ManifoldClass: typeof Manifold,
+  GLTFNodeClass: typeof GLTFNode,
   params: SceneParams = {}
 ) {
   const {
@@ -83,7 +85,7 @@ export function createScene(
 
   // Create a rounded frame with colors (similar to rounded-frame.mjs example)
   const result = roundedFrame(ManifoldClass, edgeLength, 8);
-  
+
   // Split the frame using a cube to create inside and outside parts
   const [inside, outside] = result.split(ManifoldClass.cube([edgeLength, edgeLength, edgeLength], true));
 
