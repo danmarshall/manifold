@@ -6,34 +6,36 @@ import { Manifold } from 'manifold-3d/lib/manifoldCAD.js'
 import { createScene, SceneParams } from 'my-3d-app';
 
 /* ========================================================================
- * ADVANCED: Using .evaluate() with Web Workers
+ * ADVANCED: Using Web Workers with manifold-3d
  * ========================================================================
  * 
- * The .evaluate() function allows executing user-provided code as a string.
- * It's particularly useful when combined with Web Workers to offload 
- * computation to a background thread, keeping the UI responsive.
+ * Web Workers allow you to offload computation to a background thread,
+ * keeping the UI responsive during complex operations.
  * 
- * Example: Using .evaluate() in a Worker
+ * Example: Using manifold-3d in a Worker
  * 
- * 1. Create a worker file (manifold-worker.js):
+ * 1. Create a worker file (manifold-worker.ts):
  * 
  *    import Module from 'manifold-3d';
+ *    import { Manifold } from 'manifold-3d/lib/manifoldCAD.js';
  *    
- *    let ManifoldClass = null;
+ *    let ManifoldClass: typeof Manifold | null = null;
  *    
  *    // Initialize WASM module
  *    Module().then((module) => {
- *      ManifoldClass = module;
+ *      ManifoldClass = module.Manifold;
  *      self.postMessage({ type: 'ready' });
  *    });
  *    
  *    self.onmessage = async (e) => {
- *      if (e.data.type === 'evaluate') {
+ *      if (e.data.type === 'generate' && ManifoldClass) {
  *        try {
- *          const { code, params } = e.data;
+ *          const { size, radius } = e.data.params;
  *          
- *          // Use .evaluate() to execute user code
- *          const result = ManifoldClass.evaluate(code, params);
+ *          // Create geometry using Manifold methods directly
+ *          const cube = ManifoldClass.cube([size, size, size], true);
+ *          const cylinder = ManifoldClass.cylinder(size * 2, radius, radius, 32, true);
+ *          const result = cube.subtract(cylinder);
  *          
  *          // Get mesh data to send back to main thread
  *          const mesh = result.getMesh();
@@ -41,49 +43,55 @@ import { createScene, SceneParams } from 'my-3d-app';
  *          self.postMessage({
  *            type: 'result',
  *            mesh: {
+ *              numProp: mesh.numProp,
  *              vertProperties: mesh.vertProperties,
  *              triVerts: mesh.triVerts
  *            }
  *          });
+ *          
+ *          // Clean up WASM memory
+ *          result.delete();
+ *          cube.delete();
+ *          cylinder.delete();
  *        } catch (error) {
- *          self.postMessage({ type: 'error', message: error.message });
+ *          self.postMessage({ 
+ *            type: 'error', 
+ *            message: error instanceof Error ? error.message : String(error)
+ *          });
  *        }
  *      }
  *    };
  * 
- * 2. Use the worker in your viewer:
+ * 2. In your main thread:
  * 
- *    const worker = new Worker('manifold-worker.js', { type: 'module' });
+ *    const worker = new Worker(new URL('./manifold-worker.ts', import.meta.url), 
+ *                              { type: 'module' });
  *    
  *    worker.onmessage = (e) => {
  *      if (e.data.type === 'ready') {
- *        // Worker is ready, can send code now
+ *        // Worker is ready, send geometry generation request
+ *        worker.postMessage({
+ *          type: 'generate',
+ *          params: { size: 100, radius: 20 }
+ *        });
  *      } else if (e.data.type === 'result') {
- *        // Convert mesh data to Three.js geometry
- *        const geometry = createGeometryFromMesh(e.data.mesh);
- *        // ... render geometry
+ *        // Received mesh data, render it
+ *        const mesh = e.data.mesh;
+ *        renderMesh(mesh.vertProperties, mesh.triVerts, mesh.numProp);
+ *      } else if (e.data.type === 'error') {
+ *        console.error('Worker error:', e.data.message);
  *      }
  *    };
- *    
- *    // Send code to evaluate
- *    worker.postMessage({
- *      type: 'evaluate',
- *      code: `
- *        const cube = Manifold.cube([100, 100, 100], true);
- *        const cylinder = Manifold.cylinder(20 * radiusScale, 150, 0, 32, true);
- *        return cube.subtract(cylinder);
- *      `,
- *      params: { radiusScale: 1.5 }
- *    });
  * 
  * Benefits:
- * - Complex geometry generation doesn't block the UI
- * - Can execute untrusted user code in isolated context
- * - Allows interactive code editing with live preview
+ * - Offloads heavy computation to background thread
+ * - Keeps UI responsive during complex operations
+ * - Isolated execution environment
+ * - Can process multiple geometries in parallel with multiple workers
  * 
- * Note: The current viewer uses direct WASM calls (not .evaluate()) because
- * we're calling pre-built library functions, not executing dynamic code strings.
- * Use .evaluate() when you need to execute user-provided code at runtime.
+ * Note: This viewer uses direct calls in the main thread for simplicity,
+ * but for production apps with complex models, consider using Workers.
+ * 
  * ======================================================================== */
 
 // Get canvas and controls
