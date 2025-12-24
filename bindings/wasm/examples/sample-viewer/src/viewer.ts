@@ -6,91 +6,93 @@ import { Manifold } from 'manifold-3d/lib/manifoldCAD.js'
 import { createScene, SceneParams } from 'my-3d-app';
 
 /* ========================================================================
- * ADVANCED: Using Web Workers with manifold-3d
+ * ADVANCED: Using evaluate() function with Web Workers
  * ========================================================================
  * 
- * Web Workers allow you to offload computation to a background thread,
- * keeping the UI responsive during complex operations.
+ * The manifold-3d package includes a powerful evaluate() function in
+ * worker.ts that can execute code strings and return geometry.
  * 
- * Example: Using manifold-3d in a Worker
+ * This is useful for:
+ * - Dynamic code execution (like code editors)
+ * - Offloading computation to background threads
+ * - Bundling dependencies on-the-fly
+ * 
+ * Example: Using evaluate() in a Worker
  * 
  * 1. Create a worker file (manifold-worker.ts):
  * 
- *    import Module from 'manifold-3d';
- *    import { Manifold } from 'manifold-3d/lib/manifoldCAD.js';
- *    
- *    let ManifoldClass: typeof Manifold | null = null;
- *    
- *    // Initialize WASM module
- *    Module().then((module) => {
- *      ManifoldClass = module.Manifold;
- *      self.postMessage({ type: 'ready' });
- *    });
+ *    import { evaluate } from 'manifold-3d/lib/worker.js';
  *    
  *    self.onmessage = async (e) => {
- *      if (e.data.type === 'generate' && ManifoldClass) {
+ *      if (e.data.type === 'evaluate') {
  *        try {
- *          const { size, radius } = e.data.params;
+ *          const { code, options } = e.data;
  *          
- *          // Create geometry using Manifold methods directly
- *          const cube = ManifoldClass.cube([size, size, size], true);
- *          const cylinder = ManifoldClass.cylinder(size * 2, radius, radius, 32, true);
- *          const result = cube.subtract(cylinder);
+ *          // evaluate() bundles and executes the code string
+ *          // Returns a gltf-transform Document
+ *          const doc = await evaluate(code, options);
  *          
- *          // Get mesh data to send back to main thread
- *          const mesh = result.getMesh();
+ *          // Extract mesh data from the document
+ *          const root = doc.getRoot();
+ *          const scene = root.getDefaultScene();
  *          
  *          self.postMessage({
  *            type: 'result',
- *            mesh: {
- *              numProp: mesh.numProp,
- *              vertProperties: mesh.vertProperties,
- *              triVerts: mesh.triVerts
- *            }
+ *            document: doc.toJSON() // Send serialized glTF
  *          });
- *          
- *          // Clean up WASM memory
- *          result.delete();
- *          cube.delete();
- *          cylinder.delete();
  *        } catch (error) {
- *          self.postMessage({ 
- *            type: 'error', 
- *            message: error instanceof Error ? error.message : String(error)
+ *          self.postMessage({
+ *            type: 'error',
+ *            message: error.message
  *          });
  *        }
  *      }
  *    };
  * 
- * 2. In your main thread:
+ * 2. Use the worker in your viewer:
  * 
- *    const worker = new Worker(new URL('./manifold-worker.ts', import.meta.url), 
- *                              { type: 'module' });
+ *    const worker = new Worker(new URL('./manifold-worker.ts', import.meta.url), { type: 'module' });
  *    
- *    worker.onmessage = (e) => {
- *      if (e.data.type === 'ready') {
- *        // Worker is ready, send geometry generation request
- *        worker.postMessage({
- *          type: 'generate',
- *          params: { size: 100, radius: 20 }
- *        });
- *      } else if (e.data.type === 'result') {
- *        // Received mesh data, render it
- *        const mesh = e.data.mesh;
- *        renderMesh(mesh.vertProperties, mesh.triVerts, mesh.numProp);
- *      } else if (e.data.type === 'error') {
- *        console.error('Worker error:', e.data.message);
+ *    function evaluateInWorker(code: string, options = {}) {
+ *      return new Promise((resolve, reject) => {
+ *        worker.onmessage = (e) => {
+ *          if (e.data.type === 'result') {
+ *            resolve(e.data.document);
+ *          } else if (e.data.type === 'error') {
+ *            reject(new Error(e.data.message));
+ *          }
+ *        };
+ *        
+ *        worker.postMessage({ type: 'evaluate', code, options });
+ *      });
+ *    }
+ *    
+ *    // Example usage:
+ *    const userCode = `
+ *      export default () => {
+ *        const { cube, cylinder } = manifold;
+ *        const c = cube([100, 100, 100], true);
+ *        const cyl = cylinder(150, 30, 30, 32, true);
+ *        return c.subtract(cyl);
  *      }
- *    };
+ *    `;
+ *    
+ *    const gltfDoc = await evaluateInWorker(userCode, {
+ *      doNotBundle: false,  // Set true to skip bundling
+ *      jsCDN: 'https://esm.sh/',  // CDN for dependencies
+ *    });
+ *    
+ *    // Load the glTF document and render it in Three.js
+ *    // (You'd need to parse the glTF JSON and create Three.js meshes)
  * 
- * Benefits:
- * - Offloads heavy computation to background thread
- * - Keeps UI responsive during complex operations
- * - Isolated execution environment
- * - Can process multiple geometries in parallel with multiple workers
+ * Benefits of using evaluate() with workers:
+ * - Execute arbitrary user code safely in a background thread
+ * - Non-blocking UI during complex computations
+ * - Automatic dependency bundling
+ * - Returns standard glTF format compatible with any renderer
  * 
- * Note: This viewer uses direct calls in the main thread for simplicity,
- * but for production apps with complex models, consider using Workers.
+ * Note: This viewer uses direct WASM calls in the main thread for simplicity.
+ * For apps with dynamic code execution or complex models, use evaluate() in workers.
  * 
  * ======================================================================== */
 
