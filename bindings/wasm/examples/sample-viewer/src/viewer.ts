@@ -5,69 +5,6 @@ import Module from 'manifold-3d';
 import { Manifold } from 'manifold-3d/lib/manifoldCAD.js'
 import { createScene, SceneParams } from 'my-3d-app';
 
-/* ========================================================================
- * ADVANCED: Using evaluate() function
- * ========================================================================
- * 
- * The evaluate() function from manifold-3d/lib/worker.js can execute code
- * strings and return geometry. This is useful for dynamic code execution.
- * 
- * Uncomment the function below to enable evaluate() support in this viewer.
- * You'll also need to install gltf-transform: npm install @gltf-transform/core
- * 
- * ======================================================================== */
-
-/*
-import { evaluate } from 'manifold-3d/lib/worker.js';
-
-// Stub function to call evaluate() from the worker module
-async function callEvaluate(code: string, options: { doNotBundle?: boolean; jsCDN?: string } = {}) {
-  try {
-    // Call the evaluate function which bundles and executes user code
-    // Returns a gltf-transform Document
-    const doc = await evaluate(code, options);
-    
-    // Convert the Document to JSON format
-    const json = doc.toJSON();
-    
-    // You can now process the glTF JSON to extract mesh data
-    // and create Three.js geometry from it
-    
-    console.log('Evaluate result:', json);
-    return json;
-  } catch (error) {
-    console.error('Evaluate error:', error);
-    throw error;
-  }
-}
-
-// Example usage:
-async function exampleEvaluateUsage() {
-  const userCode = `
-    export default () => {
-      const { cube, cylinder } = manifold;
-      const c = cube([100, 100, 100], true);
-      const cyl = cylinder(150, 30, 30, 32, true);
-      return c.subtract(cyl);
-    }
-  `;
-  
-  try {
-    const gltfData = await callEvaluate(userCode, {
-      doNotBundle: false,  // Set true to skip dependency bundling
-      jsCDN: 'https://esm.sh/',  // CDN for loading dependencies
-    });
-    
-    // Process gltfData and render in Three.js
-    console.log('Generated geometry:', gltfData);
-  } catch (error) {
-    console.error('Failed to evaluate code:', error);
-  }
-}
-
-// Uncomment to test: exampleEvaluateUsage();
-*/
-
 // Get canvas and controls
 const canvas = document.getElementById('canvas') as HTMLCanvasElement;
 const radiusScaleSlider = document.getElementById('radiusScale') as HTMLInputElement;
