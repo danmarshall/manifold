@@ -27,7 +27,7 @@ An application that uses the `my-manifold-shapes` library and adds its own shape
 - Accepts Manifold class as parameter for efficient WASM sharing
 
 ### 3. sample-viewer (`my-3d-viewer`)
-A Three.js-based web viewer that renders the scene from `my-3d-app`.
+A Three.js-based web viewer that renders the scene from `my-3d-app`. **This is the primary maintained viewer.**
 
 **Key Features:**
 - Depends on `my-3d-app`
@@ -36,11 +36,13 @@ A Three.js-based web viewer that renders the scene from `my-3d-app`.
   - Library cylinder radius scale (0.1 to 2.0)
   - Sphere count (1 to 12)
 - Orbit controls for camera manipulation
+- Lock Camera checkbox (persisted to localStorage) to prevent automatic camera repositioning when parameters change
+- Automatic camera positioning based on model bounds (when not locked)
 - Ground grid at Z=0
 - Uses Vite for development
 
 ### 4. sample-viewer-babylon (`my-3d-viewer-babylon`)
-A Babylon.js-based web viewer that renders the same scene from `my-3d-app`.
+A Babylon.js-based web viewer that renders the same scene from `my-3d-app`. **Note: This viewer is provided as a proof-of-concept that manifold-3d works with multiple rendering libraries, but is not actively maintained.**
 
 **Key Features:**
 - Depends on `my-3d-app`

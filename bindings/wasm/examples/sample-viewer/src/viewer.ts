@@ -11,7 +11,17 @@ const radiusScaleSlider = document.getElementById('radiusScale') as HTMLInputEle
 const sphereCountSlider = document.getElementById('sphereCount') as HTMLInputElement;
 const radiusValue = document.getElementById('radiusValue') as HTMLSpanElement;
 const sphereValue = document.getElementById('sphereValue') as HTMLSpanElement;
+const lockCameraCheckbox = document.getElementById('lockCamera') as HTMLInputElement;
 const status = document.getElementById('status') as HTMLDivElement;
+
+// localStorage key for camera lock preference
+const CAMERA_LOCK_KEY = 'manifold-viewer-camera-lock';
+
+// Load camera lock preference from localStorage
+const savedLockState = localStorage.getItem(CAMERA_LOCK_KEY);
+if (savedLockState !== null) {
+  lockCameraCheckbox.checked = savedLockState === 'true';
+}
 
 // Set up Three.js scene
 const scene = new THREE.Scene();
@@ -188,8 +198,23 @@ function updateScene(params: SceneParams) {
     edgesLine = new THREE.LineSegments(edges, lineMaterial);
     scene.add(edgesLine);
 
-    // Auto-position camera to fit the model
-    positionCameraForModel(geometry);
+    // Auto-position camera to fit the model (only if not locked)
+    if (!lockCameraCheckbox.checked) {
+      positionCameraForModel(geometry);
+    } else {
+      // Even when locked, update the clipping planes to prevent rendering issues
+      geometry.computeBoundingBox();
+      const bbox = geometry.boundingBox;
+      if (bbox) {
+        const size = new THREE.Vector3();
+        bbox.getSize(size);
+        const maxDim = Math.max(size.x, size.y, size.z);
+        
+        camera.near = maxDim * 0.01;
+        camera.far = maxDim * 10;
+        camera.updateProjectionMatrix();
+      }
+    }
 
     // Clean up Manifold object
     manifoldScene.delete();
@@ -217,6 +242,11 @@ sphereCountSlider.addEventListener('input', () => {
   sphereValue.textContent = value.toString();
   currentParams.sphereCount = value;
   updateScene(currentParams);
+});
+
+// Save camera lock preference to localStorage when changed
+lockCameraCheckbox.addEventListener('change', () => {
+  localStorage.setItem(CAMERA_LOCK_KEY, lockCameraCheckbox.checked.toString());
 });
 
 // Animation loop
