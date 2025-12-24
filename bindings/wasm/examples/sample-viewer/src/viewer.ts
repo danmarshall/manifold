@@ -5,6 +5,87 @@ import Module from 'manifold-3d';
 import { Manifold } from 'manifold-3d/lib/manifoldCAD.js'
 import { createScene, SceneParams } from 'my-3d-app';
 
+/* ========================================================================
+ * ADVANCED: Using .evaluate() with Web Workers
+ * ========================================================================
+ * 
+ * The .evaluate() function allows executing user-provided code as a string.
+ * It's particularly useful when combined with Web Workers to offload 
+ * computation to a background thread, keeping the UI responsive.
+ * 
+ * Example: Using .evaluate() in a Worker
+ * 
+ * 1. Create a worker file (manifold-worker.js):
+ * 
+ *    import Module from 'manifold-3d';
+ *    
+ *    let ManifoldClass = null;
+ *    
+ *    // Initialize WASM module
+ *    Module().then((module) => {
+ *      ManifoldClass = module;
+ *      self.postMessage({ type: 'ready' });
+ *    });
+ *    
+ *    self.onmessage = async (e) => {
+ *      if (e.data.type === 'evaluate') {
+ *        try {
+ *          const { code, params } = e.data;
+ *          
+ *          // Use .evaluate() to execute user code
+ *          const result = ManifoldClass.evaluate(code, params);
+ *          
+ *          // Get mesh data to send back to main thread
+ *          const mesh = result.getMesh();
+ *          
+ *          self.postMessage({
+ *            type: 'result',
+ *            mesh: {
+ *              vertProperties: mesh.vertProperties,
+ *              triVerts: mesh.triVerts
+ *            }
+ *          });
+ *        } catch (error) {
+ *          self.postMessage({ type: 'error', message: error.message });
+ *        }
+ *      }
+ *    };
+ * 
+ * 2. Use the worker in your viewer:
+ * 
+ *    const worker = new Worker('manifold-worker.js', { type: 'module' });
+ *    
+ *    worker.onmessage = (e) => {
+ *      if (e.data.type === 'ready') {
+ *        // Worker is ready, can send code now
+ *      } else if (e.data.type === 'result') {
+ *        // Convert mesh data to Three.js geometry
+ *        const geometry = createGeometryFromMesh(e.data.mesh);
+ *        // ... render geometry
+ *      }
+ *    };
+ *    
+ *    // Send code to evaluate
+ *    worker.postMessage({
+ *      type: 'evaluate',
+ *      code: `
+ *        const cube = Manifold.cube([100, 100, 100], true);
+ *        const cylinder = Manifold.cylinder(20 * radiusScale, 150, 0, 32, true);
+ *        return cube.subtract(cylinder);
+ *      `,
+ *      params: { radiusScale: 1.5 }
+ *    });
+ * 
+ * Benefits:
+ * - Complex geometry generation doesn't block the UI
+ * - Can execute untrusted user code in isolated context
+ * - Allows interactive code editing with live preview
+ * 
+ * Note: The current viewer uses direct WASM calls (not .evaluate()) because
+ * we're calling pre-built library functions, not executing dynamic code strings.
+ * Use .evaluate() when you need to execute user-provided code at runtime.
+ * ======================================================================== */
+
 // Get canvas and controls
 const canvas = document.getElementById('canvas') as HTMLCanvasElement;
 const radiusScaleSlider = document.getElementById('radiusScale') as HTMLInputElement;
