@@ -247,6 +247,11 @@ sphereCountSlider.addEventListener('input', () => {
 // Save camera lock preference to localStorage when changed
 lockCameraCheckbox.addEventListener('change', () => {
   localStorage.setItem(CAMERA_LOCK_KEY, lockCameraCheckbox.checked.toString());
+  
+  // If unchecking (unlocking), immediately position camera to current model
+  if (!lockCameraCheckbox.checked && sceneMesh) {
+    positionCameraForModel(sceneMesh.geometry);
+  }
 });
 
 // Animation loop
