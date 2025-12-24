@@ -226,6 +226,11 @@ function positionCameraForModel(mesh: Mesh) {
   // Update distance limits based on model size
   camera.lowerRadiusLimit = maxDim * 0.5;
   camera.upperRadiusLimit = maxDim * 5;
+  
+  // Update camera near/far clipping planes based on model size
+  // This prevents clipping when zooming in or out
+  camera.minZ = maxDim * 0.01;
+  camera.maxZ = maxDim * 10;
 }
 
 // Update scene with new parameters

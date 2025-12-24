@@ -21,8 +21,8 @@ scene.background = new THREE.Color(0xf0f0f0);
 const camera = new THREE.PerspectiveCamera(
   45,
   window.innerWidth / window.innerHeight,
-  1,
-  1000
+  0.1,
+  10000
 );
 camera.position.set(200, -200, 200);
 camera.up.set(0, 0, 1); // CAD coordinates: Z is up
@@ -142,6 +142,12 @@ function positionCameraForModel(geometry: THREE.BufferGeometry) {
   // Update controls distance limits based on model size
   controls.minDistance = maxDim * 0.5;
   controls.maxDistance = maxDim * 5;
+  
+  // Update camera near/far planes based on model size
+  // This prevents clipping when zooming in or out
+  camera.near = maxDim * 0.01;
+  camera.far = maxDim * 10;
+  camera.updateProjectionMatrix();
   
   controls.update();
 }
