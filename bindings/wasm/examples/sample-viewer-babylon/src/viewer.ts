@@ -9,20 +9,48 @@ import {
   StandardMaterial,
   Color3,
   VertexData,
-  GridMaterial,
-  LinesMesh
+  MeshBuilder
 } from '@babylonjs/core';
 import Module from 'manifold-3d';
 import { Manifold } from 'manifold-3d/lib/manifoldCAD.js'
 import { createScene as createManifoldScene, SceneParams } from 'my-3d-app';
 
 // Get canvas and controls
-const canvas = document.getElementById('canvas') as HTMLCanvasElement;
-const radiusScaleSlider = document.getElementById('radiusScale') as HTMLInputElement;
-const sphereCountSlider = document.getElementById('sphereCount') as HTMLInputElement;
-const radiusValue = document.getElementById('radiusValue') as HTMLSpanElement;
-const sphereValue = document.getElementById('sphereValue') as HTMLSpanElement;
-const status = document.getElementById('status') as HTMLDivElement;
+const canvasElement = document.getElementById('canvas');
+if (!(canvasElement instanceof HTMLCanvasElement)) {
+  throw new Error('Canvas element with id "canvas" not found or not a canvas.');
+}
+const canvas = canvasElement;
+
+const radiusScaleElement = document.getElementById('radiusScale');
+if (!(radiusScaleElement instanceof HTMLInputElement)) {
+  throw new Error('Element with id "radiusScale" must be an input.');
+}
+const radiusScaleSlider = radiusScaleElement;
+
+const sphereCountElement = document.getElementById('sphereCount');
+if (!(sphereCountElement instanceof HTMLInputElement)) {
+  throw new Error('Element with id "sphereCount" must be an input.');
+}
+const sphereCountSlider = sphereCountElement;
+
+const radiusValueElement = document.getElementById('radiusValue');
+if (!(radiusValueElement instanceof HTMLSpanElement)) {
+  throw new Error('Element with id "radiusValue" must be a span.');
+}
+const radiusValue = radiusValueElement;
+
+const sphereValueElement = document.getElementById('sphereValue');
+if (!(sphereValueElement instanceof HTMLSpanElement)) {
+  throw new Error('Element with id "sphereValue" must be a span.');
+}
+const sphereValue = sphereValueElement;
+
+const statusElement = document.getElementById('status');
+if (!(statusElement instanceof HTMLDivElement)) {
+  throw new Error('Element with id "status" must be a div.');
+}
+const status = statusElement;
 
 // Create Babylon.js engine and scene
 const engine = new Engine(canvas, true);
@@ -48,18 +76,16 @@ camera.attachControl(canvas, true);
 const light = new HemisphericLight('light', new Vector3(0, 1, 1), scene);
 light.intensity = 0.8;
 
-// Create ground grid plane
+// Create ground grid plane using MeshBuilder
 const groundSize = 500;
-const gridMaterial = new GridMaterial('gridMaterial', scene);
-gridMaterial.majorUnitFrequency = 5;
-gridMaterial.minorUnitVisibility = 0.45;
-gridMaterial.gridRatio = 10;
-gridMaterial.backFaceCulling = false;
-gridMaterial.mainColor = new Color3(0.5, 0.5, 0.5);
-gridMaterial.lineColor = new Color3(0.8, 0.8, 0.8);
-gridMaterial.opacity = 0.8;
+const ground = MeshBuilder.CreateGround('ground', { width: groundSize, height: groundSize, subdivisions: 50 }, scene);
 
-const ground = Mesh.CreateGround('ground', groundSize, groundSize, 2, scene);
+const gridMaterial = new StandardMaterial('gridMaterial', scene);
+gridMaterial.diffuseColor = new Color3(0.9, 0.9, 0.9);
+gridMaterial.specularColor = new Color3(0.1, 0.1, 0.1);
+gridMaterial.alpha = 0.5;
+gridMaterial.wireframe = true;
+
 ground.material = gridMaterial;
 ground.position.z = 0; // At Z=0 in CAD coordinates
 
@@ -103,7 +129,6 @@ material.backFaceCulling = false;
 
 // Scene mesh object
 let sceneMesh: Mesh | null = null;
-let edgesLines: LinesMesh | null = null;
 
 // Current parameters
 let currentParams: SceneParams = {
@@ -135,15 +160,11 @@ function updateScene(params: SceneParams) {
     if (sceneMesh) {
       sceneMesh.dispose();
     }
-    if (edgesLines) {
-      edgesLines.dispose();
-    }
 
     sceneMesh = newMesh;
 
     // Add edge lines for better visualization
-    edgesLines = sceneMesh.createInstance('edges') as any;
-    edgesLines = sceneMesh.enableEdgesRendering();
+    sceneMesh.enableEdgesRendering();
     sceneMesh.edgesWidth = 2.0;
     sceneMesh.edgesColor = new Color3(0, 0, 0).toColor4();
 
