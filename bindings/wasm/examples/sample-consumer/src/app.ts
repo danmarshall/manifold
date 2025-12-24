@@ -1,4 +1,4 @@
-import { Manifold } from 'manifold-3d/lib/manifoldCAD.js'
+import { Manifold, GLTFNode, getGLTFNodes } from 'manifold-3d/lib/manifoldCAD.js'
 
 // Application that consumes the my-manifold-shapes library
 import { createCubeWithHole } from 'my-manifold-shapes';
@@ -9,9 +9,42 @@ export interface SceneParams {
    */
   libraryRadiusScale?: number;
   /**
-   * Number of spheres to create in a ring (1 to 12)
+   * Edge length for the rounded frame (20 to 150)
    */
-  sphereCount?: number;
+  edgeLength?: number;
+}
+
+/**
+ * Create a rounded frame (like the rounded-frame example).
+ * A frame made of rounded edges and corners.
+ * 
+ * @param ManifoldClass - The Manifold class
+ * @param edgeLength - Length of each edge
+ * @param radius - Radius of corners and edges
+ * @param circularSegments - Number of segments for circles
+ * @returns A Manifold object representing the rounded frame
+ */
+function roundedFrame(
+  ManifoldClass: typeof Manifold,
+  edgeLength: number,
+  radius: number,
+  circularSegments: number = 0
+) {
+  const edge = ManifoldClass.cylinder(edgeLength, radius, -1, circularSegments);
+  const corner = ManifoldClass.sphere(radius, circularSegments);
+
+  const edge1 = corner.add(edge).rotate([-90, 0, 0]).translate([
+    -edgeLength / 2, -edgeLength / 2, 0
+  ]);
+
+  const edge2 = edge1.add(edge1.rotate([0, 0, 180]))
+    .add(edge.translate([-edgeLength / 2, -edgeLength / 2, 0]));
+
+  const edge4 = edge2.add(edge2.rotate([0, 0, 90])).translate([
+    0, 0, -edgeLength / 2
+  ]);
+
+  return edge4.add(edge4.rotate([180, 0, 0]));
 }
 
 /**
@@ -23,7 +56,7 @@ export interface SceneParams {
  * 
  * @param ManifoldClass - The Manifold class from an initialized WASM module
  * @param params - Scene configuration parameters
- * @returns A Manifold object containing the complete scene
+ * @returns An array of GLTFNodes with materials for color support
  */
 export function createScene(
   ManifoldClass: typeof Manifold,
@@ -31,7 +64,7 @@ export function createScene(
 ) {
   const {
     libraryRadiusScale = 1.0,
-    sphereCount = 6
+    edgeLength = 80
   } = params;
 
   // Use the library to create a cube with hole
@@ -43,25 +76,28 @@ export function createScene(
     radiusScale: libraryRadiusScale
   });
 
-  // Create our own custom shapes
-  // Create a ring of small spheres around the cube
-  const sphereRadius = 10;
-  const ringRadius = 80;
+  // Create the cube-with-hole node (default gray color)
+  const cubeNode = new GLTFNode();
+  cubeNode.manifold = cubeWithHole;
+  cubeNode.name = 'Cube with Hole';
 
-  let spheres = ManifoldClass.sphere(sphereRadius, 32);
-  spheres = spheres.translate([ringRadius, 0, 0]);
+  // Create a rounded frame with colors (similar to rounded-frame.mjs example)
+  const result = roundedFrame(ManifoldClass, edgeLength, 8);
+  
+  // Split the frame using a cube to create inside and outside parts
+  const [inside, outside] = result.split(ManifoldClass.cube([edgeLength, edgeLength, edgeLength], true));
 
-  // Add more spheres in a circle
-  for (let i = 1; i < sphereCount; i++) {
-    const angle = (i / sphereCount) * Math.PI * 2;
-    const x = Math.cos(angle) * ringRadius;
-    const y = Math.sin(angle) * ringRadius;
-    const sphere = ManifoldClass.sphere(sphereRadius, 32).translate([x, y, 0]);
-    spheres = spheres.add(sphere);
-  }
+  // Create node for the outside part (default color)
+  const outsideNode = new GLTFNode();
+  outsideNode.manifold = outside;
+  outsideNode.name = 'Frame Outside';
 
-  // Combine the library shape with our custom shapes
-  const scene = cubeWithHole.add(spheres);
+  // Create node for the inside part with cyan color
+  const insideNode = new GLTFNode();
+  insideNode.manifold = inside;
+  insideNode.material = { baseColorFactor: [0, 1, 1] }; // Cyan color (RGB)
+  insideNode.name = 'Frame Inside';
 
-  return scene;
+  // Return an array of GLTFNodes
+  return [cubeNode, outsideNode, insideNode];
 }

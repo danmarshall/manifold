@@ -2,15 +2,15 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import Module from 'manifold-3d';
-import { Manifold } from 'manifold-3d/lib/manifoldCAD.js'
+import { Manifold, GLTFNode } from 'manifold-3d/lib/manifoldCAD.js'
 import { createScene, SceneParams } from 'my-3d-app';
 
 // Get canvas and controls
 const canvas = document.getElementById('canvas') as HTMLCanvasElement;
 const radiusScaleSlider = document.getElementById('radiusScale') as HTMLInputElement;
-const sphereCountSlider = document.getElementById('sphereCount') as HTMLInputElement;
+const edgeLengthSlider = document.getElementById('sphereCount') as HTMLInputElement;
 const radiusValue = document.getElementById('radiusValue') as HTMLSpanElement;
-const sphereValue = document.getElementById('sphereValue') as HTMLSpanElement;
+const edgeLengthValue = document.getElementById('sphereValue') as HTMLSpanElement;
 const lockCameraCheckbox = document.getElementById('lockCamera') as HTMLInputElement;
 const status = document.getElementById('status') as HTMLDivElement;
 
@@ -95,34 +95,21 @@ function manifoldToThreeGeometry(manifold: InstanceType<typeof Manifold>): THREE
   return geometry;
 }
 
-// Create material
-const material = new THREE.MeshStandardMaterial({
-  color: 0xcccccc,
-  roughness: 0.7,
-  metalness: 0.3,
-  flatShading: true, // Prevents smoothing artifacts on boolean operations
-});
-
-// Scene mesh object
-let sceneMesh: THREE.Mesh | null = null;
-let edgesLine: THREE.LineSegments | null = null;
+// Scene mesh objects - now we have multiple meshes with different colors
+let sceneMeshes: THREE.Mesh[] = [];
+let edgesLines: THREE.LineSegments[] = [];
 
 // Current parameters
 let currentParams: SceneParams = {
   libraryRadiusScale: 1.0,
-  sphereCount: 6
+  edgeLength: 80
 };
 
 // WASM module - initialized once for the entire application
 let ManifoldClass: typeof Manifold | null = null;
 
-// Auto-position camera based on model bounds
-function positionCameraForModel(geometry: THREE.BufferGeometry) {
-  geometry.computeBoundingBox();
-  const bbox = geometry.boundingBox;
-  
-  if (!bbox) return;
-  
+// Auto-position camera based on bounding box
+function positionCameraForBounds(bbox: THREE.Box3) {
   // Calculate model center and size
   const center = new THREE.Vector3();
   bbox.getCenter(center);
@@ -171,43 +158,97 @@ function updateScene(params: SceneParams) {
       throw new Error('Manifold class not initialized');
     }
 
-    // Create the scene from my-3d-app
+    // Create the scene from my-3d-app - now returns an array of GLTFNodes
     // Pass the Manifold class that was initialized once
-    const manifoldScene = createScene(ManifoldClass, params);
+    const gltfNodes = createScene(ManifoldClass, params);
 
-    // Convert to Three.js geometry
-    const geometry = manifoldToThreeGeometry(manifoldScene);
+    // Clean up old meshes and edges
+    sceneMeshes.forEach(mesh => {
+      mesh.geometry.dispose();
+      if (Array.isArray(mesh.material)) {
+        mesh.material.forEach(m => m.dispose());
+      } else {
+        mesh.material.dispose();
+      }
+      scene.remove(mesh);
+    });
+    edgesLines.forEach(line => {
+      line.geometry.dispose();
+      if (Array.isArray(line.material)) {
+        line.material.forEach(m => m.dispose());
+      } else {
+        line.material.dispose();
+      }
+      scene.remove(line);
+    });
+    sceneMeshes = [];
+    edgesLines = [];
 
-    // Clean up old mesh
-    if (sceneMesh) {
-      sceneMesh.geometry.dispose();
-      scene.remove(sceneMesh);
-    }
-    if (edgesLine) {
-      edgesLine.geometry.dispose();
-      scene.remove(edgesLine);
-    }
+    let totalVertices = 0;
+    let totalTriangles = 0;
+    const allGeometries: THREE.BufferGeometry[] = [];
 
-    // Create new mesh
-    sceneMesh = new THREE.Mesh(geometry, material);
-    scene.add(sceneMesh);
+    // Process each GLTFNode
+    gltfNodes.forEach((node: GLTFNode) => {
+      if (!node.manifold) return;
 
-    // Add edge lines for face distinction
-    const edges = new THREE.EdgesGeometry(geometry, 15); // 15 degree threshold
-    const lineMaterial = new THREE.LineBasicMaterial({ color: 0x000000, linewidth: 1 });
-    edgesLine = new THREE.LineSegments(edges, lineMaterial);
-    scene.add(edgesLine);
+      // Convert to Three.js geometry
+      const geometry = manifoldToThreeGeometry(node.manifold);
+      allGeometries.push(geometry);
 
-    // Auto-position camera to fit the model (only if not locked)
-    if (!lockCameraCheckbox.checked) {
-      positionCameraForModel(geometry);
-    } else {
-      // Even when locked, update the clipping planes to prevent rendering issues
-      geometry.computeBoundingBox();
-      const bbox = geometry.boundingBox;
-      if (bbox) {
+      // Create material with color from node
+      const color = node.material?.baseColorFactor 
+        ? new THREE.Color(
+            node.material.baseColorFactor[0],
+            node.material.baseColorFactor[1],
+            node.material.baseColorFactor[2]
+          )
+        : new THREE.Color(0xcccccc); // Default gray
+
+      const material = new THREE.MeshStandardMaterial({
+        color: color,
+        roughness: node.material?.roughness ?? 0.7,
+        metalness: node.material?.metallic ?? 0.3,
+        flatShading: true,
+      });
+
+      // Create mesh
+      const mesh = new THREE.Mesh(geometry, material);
+      mesh.name = node.name || 'Unnamed';
+      scene.add(mesh);
+      sceneMeshes.push(mesh);
+
+      // Add edge lines for face distinction
+      const edges = new THREE.EdgesGeometry(geometry, 15); // 15 degree threshold
+      const lineMaterial = new THREE.LineBasicMaterial({ color: 0x000000, linewidth: 1 });
+      const edgeLine = new THREE.LineSegments(edges, lineMaterial);
+      scene.add(edgeLine);
+      edgesLines.push(edgeLine);
+
+      totalVertices += geometry.attributes.position.count;
+      totalTriangles += geometry.index!.count / 3;
+
+      // Clean up Manifold object
+      node.manifold.delete();
+    });
+
+    // Auto-position camera to fit all geometries (only if not locked)
+    if (allGeometries.length > 0) {
+      // Combine all bounding boxes to get overall bounds
+      const combinedBox = new THREE.Box3();
+      allGeometries.forEach(geom => {
+        geom.computeBoundingBox();
+        if (geom.boundingBox) {
+          combinedBox.union(geom.boundingBox);
+        }
+      });
+
+      if (!lockCameraCheckbox.checked) {
+        positionCameraForBounds(combinedBox);
+      } else {
+        // Even when locked, update the clipping planes to prevent rendering issues
         const size = new THREE.Vector3();
-        bbox.getSize(size);
+        combinedBox.getSize(size);
         const maxDim = Math.max(size.x, size.y, size.z);
         
         camera.near = maxDim * 0.01;
@@ -216,10 +257,7 @@ function updateScene(params: SceneParams) {
       }
     }
 
-    // Clean up Manifold object
-    manifoldScene.delete();
-
-    status.textContent = `Vertices: ${geometry.attributes.position.count}, Triangles: ${geometry.index!.count / 3}`;
+    status.textContent = `Vertices: ${totalVertices}, Triangles: ${totalTriangles.toFixed(0)}`;
   } catch (error) {
     console.error('Error updating scene:', error);
     status.textContent = `Error: ${error}`;
@@ -237,10 +275,10 @@ radiusScaleSlider.addEventListener('input', () => {
   updateScene(currentParams);
 });
 
-sphereCountSlider.addEventListener('input', () => {
-  const value = parseInt(sphereCountSlider.value);
-  sphereValue.textContent = value.toString();
-  currentParams.sphereCount = value;
+edgeLengthSlider.addEventListener('input', () => {
+  const value = parseInt(edgeLengthSlider.value);
+  edgeLengthValue.textContent = value.toString();
+  currentParams.edgeLength = value;
   updateScene(currentParams);
 });
 
@@ -248,9 +286,17 @@ sphereCountSlider.addEventListener('input', () => {
 lockCameraCheckbox.addEventListener('change', () => {
   localStorage.setItem(CAMERA_LOCK_KEY, lockCameraCheckbox.checked.toString());
   
-  // If unchecking (unlocking), immediately position camera to current model
-  if (!lockCameraCheckbox.checked && sceneMesh) {
-    positionCameraForModel(sceneMesh.geometry);
+  // If unchecking (unlocking), immediately position camera for current model
+  if (!lockCameraCheckbox.checked && sceneMeshes.length > 0) {
+    // Calculate combined bounds of all meshes
+    const combinedBox = new THREE.Box3();
+    sceneMeshes.forEach(mesh => {
+      mesh.geometry.computeBoundingBox();
+      if (mesh.geometry.boundingBox) {
+        combinedBox.union(mesh.geometry.boundingBox);
+      }
+    });
+    positionCameraForBounds(combinedBox);
   }
 });
 
