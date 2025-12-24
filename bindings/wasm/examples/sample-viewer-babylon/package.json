@@ -1,0 +1,27 @@
+{
+  "name": "my-3d-viewer-babylon",
+  "version": "1.0.0",
+  "description": "A Babylon.js viewer that renders shapes from my-3d-app",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview"
+  },
+  "keywords": [
+    "manifold",
+    "3d",
+    "babylon.js"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "@babylonjs/core": "^6.0.0",
+    "manifold-3d": "^3.3.2",
+    "my-3d-app": "file:../sample-consumer"
+  },
+  "devDependencies": {
+    "typescript": "^5.0.0",
+    "vite": "^5.0.0"
+  }
+}

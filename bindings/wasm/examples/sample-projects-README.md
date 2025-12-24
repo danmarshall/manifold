@@ -1,6 +1,6 @@
-# Sample Projects: Library, Consumer, and Viewer
+# Sample Projects: Library, Consumer, and Viewers
 
-This directory contains three sample projects that demonstrate how to use `manifold-3d` from npm in a library, consume that library in another project, and visualize the results with Three.js.
+This directory contains four sample projects that demonstrate how to use `manifold-3d` from npm in a library, consume that library in another project, and visualize the results with Three.js or Babylon.js.
 
 ## Project Overview
 
@@ -8,11 +8,12 @@ This directory contains three sample projects that demonstrate how to use `manif
 A library that uses `manifold-3d` to create reusable 3D shapes.
 
 **Key Features:**
-- Uses `manifold-3d` as a dependency
+- Uses `manifold-3d` as a peer dependency
 - Exports `createCubeWithHole()` that subtracts a cylinder from a cube
 - Supports a `radiusScale` parameter for controlling cylinder size
 - Can be published to npm
 - Provides TypeScript types
+- Accepts Manifold class as parameter (efficient WASM architecture)
 
 ### 2. sample-consumer (`my-3d-app`)
 An application that uses the `my-manifold-shapes` library and adds its own shapes.
@@ -23,6 +24,7 @@ An application that uses the `my-manifold-shapes` library and adds its own shape
 - Combines library shapes with custom shapes into a scene
 - Exports `createScene()` function with parameters
 - Demonstrates the dependency chain: app → library → manifold-3d
+- Accepts Manifold class as parameter for efficient WASM sharing
 
 ### 3. sample-viewer (`my-3d-viewer`)
 A Three.js-based web viewer that renders the scene from `my-3d-app`.
@@ -33,12 +35,25 @@ A Three.js-based web viewer that renders the scene from `my-3d-app`.
 - Interactive UI with sliders for parameters:
   - Library cylinder radius scale (0.1 to 2.0)
   - Sphere count (1 to 12)
-- Auto-rotating scene
+- Orbit controls for camera manipulation
+- Ground grid at Z=0
 - Uses Vite for development
+
+### 4. sample-viewer-babylon (`my-3d-viewer-babylon`)
+A Babylon.js-based web viewer that renders the same scene from `my-3d-app`.
+
+**Key Features:**
+- Depends on `my-3d-app`
+- Real-time Babylon.js rendering with lighting
+- Same interactive UI with sliders for parameters
+- Arc rotate camera controls
+- Ground grid plane with GridMaterial
+- Edge rendering for better visualization
+- Demonstrates manifold-3d works with any rendering library
 
 ## Quick Start
 
-### Full Stack Setup
+### Full Stack Setup (Three.js Viewer)
 
 ```bash
 # Step 1: Build the library
@@ -49,13 +64,24 @@ npm install && npm run build
 cd ../sample-consumer
 npm install && npm run build
 
-# Step 3: Run the viewer
+# Step 3: Run the Three.js viewer
 cd ../sample-viewer
 npm install
 npm run dev
 ```
 
 Then open http://localhost:3000 in your browser to see the interactive 3D viewer!
+
+### Alternative: Babylon.js Viewer
+
+```bash
+# After building library and consumer (steps 1-2 above)
+cd sample-viewer-babylon
+npm install
+npm run dev
+```
+
+Then open the URL shown in console (typically http://localhost:5173) to see the Babylon.js viewer!
 
 ## Alternative: Build Each Project Separately
 
