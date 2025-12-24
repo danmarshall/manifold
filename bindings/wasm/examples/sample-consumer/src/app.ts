@@ -1,5 +1,3 @@
-import { Manifold, GLTFNode, getGLTFNodes } from 'manifold-3d/lib/manifoldCAD.js'
-
 // Application that consumes the my-manifold-shapes library
 import { createCubeWithHole } from 'my-manifold-shapes';
 
@@ -25,7 +23,7 @@ export interface SceneParams {
  * @returns A Manifold object representing the rounded frame
  */
 function roundedFrame(
-  ManifoldClass: typeof Manifold,
+  ManifoldClass: any,
   edgeLength: number,
   radius: number,
   circularSegments: number = 0
@@ -55,11 +53,13 @@ function roundedFrame(
  * the entire application.
  * 
  * @param ManifoldClass - The Manifold class from an initialized WASM module
+ * @param GLTFNodeClass - The GLTFNode class from manifold-3d
  * @param params - Scene configuration parameters
  * @returns An array of GLTFNodes with materials for color support
  */
 export function createScene(
-  ManifoldClass: typeof Manifold,
+  ManifoldClass: any,
+  GLTFNodeClass: any,
   params: SceneParams = {}
 ) {
   const {
@@ -77,7 +77,7 @@ export function createScene(
   });
 
   // Create the cube-with-hole node (default gray color)
-  const cubeNode = new GLTFNode();
+  const cubeNode = new GLTFNodeClass();
   cubeNode.manifold = cubeWithHole;
   cubeNode.name = 'Cube with Hole';
 
@@ -88,12 +88,12 @@ export function createScene(
   const [inside, outside] = result.split(ManifoldClass.cube([edgeLength, edgeLength, edgeLength], true));
 
   // Create node for the outside part (default color)
-  const outsideNode = new GLTFNode();
+  const outsideNode = new GLTFNodeClass();
   outsideNode.manifold = outside;
   outsideNode.name = 'Frame Outside';
 
   // Create node for the inside part with cyan color
-  const insideNode = new GLTFNode();
+  const insideNode = new GLTFNodeClass();
   insideNode.manifold = inside;
   insideNode.material = { baseColorFactor: [0, 1, 1] }; // Cyan color (RGB)
   insideNode.name = 'Frame Inside';

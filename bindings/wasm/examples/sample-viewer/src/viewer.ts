@@ -159,8 +159,8 @@ function updateScene(params: SceneParams) {
     }
 
     // Create the scene from my-3d-app - now returns an array of GLTFNodes
-    // Pass the Manifold class that was initialized once
-    const sceneResult = createScene(ManifoldClass, params);
+    // Pass the Manifold class and GLTFNode class that were initialized once
+    const sceneResult = createScene(ManifoldClass, GLTFNode, params);
     
     // Ensure we have an array of GLTFNodes
     const gltfNodes = Array.isArray(sceneResult) ? sceneResult : [sceneResult];
