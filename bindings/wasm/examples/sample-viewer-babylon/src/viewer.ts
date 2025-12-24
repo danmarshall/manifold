@@ -196,6 +196,38 @@ let currentParams: SceneParams = {
 // WASM module - initialized once for the entire application
 let ManifoldClass: typeof Manifold | null = null;
 
+// Auto-position camera based on model bounds
+function positionCameraForModel(mesh: Mesh) {
+  // Get bounding box
+  const boundingInfo = mesh.getBoundingInfo();
+  const bbox = boundingInfo.boundingBox;
+  
+  // Calculate model center
+  const center = bbox.center;
+  
+  // Calculate size
+  const size = bbox.extendSize.scale(2); // extendSize is half-size, so scale by 2
+  const maxDim = Math.max(size.x, size.y, size.z);
+  
+  // Position camera at a good viewing distance
+  // Use 2x the max dimension for good framing
+  const distance = maxDim * 2;
+  
+  // Update camera radius (distance from target)
+  camera.radius = distance;
+  
+  // Update camera target to model center
+  camera.target = center;
+  
+  // Set camera alpha and beta for good viewing angle (45 degrees from XY plane)
+  camera.alpha = Math.PI / 4; // 45 degrees around
+  camera.beta = Math.PI / 3;   // ~60 degrees from vertical
+  
+  // Update distance limits based on model size
+  camera.lowerRadiusLimit = maxDim * 0.5;
+  camera.upperRadiusLimit = maxDim * 5;
+}
+
 // Update scene with new parameters
 function updateScene(params: SceneParams) {
   try {
@@ -224,6 +256,9 @@ function updateScene(params: SceneParams) {
     sceneMesh.enableEdgesRendering();
     sceneMesh.edgesWidth = 2.0;
     sceneMesh.edgesColor = new Color3(0, 0, 0).toColor4();
+
+    // Auto-position camera to fit the model
+    positionCameraForModel(sceneMesh);
 
     // Clean up Manifold object
     manifoldScene.delete();

@@ -106,6 +106,46 @@ let currentParams: SceneParams = {
 // WASM module - initialized once for the entire application
 let ManifoldClass: typeof Manifold | null = null;
 
+// Auto-position camera based on model bounds
+function positionCameraForModel(geometry: THREE.BufferGeometry) {
+  geometry.computeBoundingBox();
+  const bbox = geometry.boundingBox;
+  
+  if (!bbox) return;
+  
+  // Calculate model center and size
+  const center = new THREE.Vector3();
+  bbox.getCenter(center);
+  
+  const size = new THREE.Vector3();
+  bbox.getSize(size);
+  
+  const maxDim = Math.max(size.x, size.y, size.z);
+  
+  // Position camera at a good viewing distance
+  // Use 2x the max dimension for good framing
+  const distance = maxDim * 2;
+  
+  // Position camera at 45-degree angle from XY plane, looking down at model
+  const cameraPos = new THREE.Vector3(
+    center.x + distance * 0.7,
+    center.y - distance * 0.7,
+    center.z + distance * 0.7
+  );
+  
+  camera.position.copy(cameraPos);
+  camera.lookAt(center);
+  
+  // Update controls target to model center
+  controls.target.copy(center);
+  
+  // Update controls distance limits based on model size
+  controls.minDistance = maxDim * 0.5;
+  controls.maxDistance = maxDim * 5;
+  
+  controls.update();
+}
+
 // Update scene with new parameters
 function updateScene(params: SceneParams) {
   try {
@@ -141,6 +181,9 @@ function updateScene(params: SceneParams) {
     const lineMaterial = new THREE.LineBasicMaterial({ color: 0x000000, linewidth: 1 });
     edgesLine = new THREE.LineSegments(edges, lineMaterial);
     scene.add(edgesLine);
+
+    // Auto-position camera to fit the model
+    positionCameraForModel(geometry);
 
     // Clean up Manifold object
     manifoldScene.delete();
