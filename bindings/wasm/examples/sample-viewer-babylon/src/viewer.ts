@@ -4,12 +4,14 @@ import {
   Scene,
   ArcRotateCamera,
   HemisphericLight,
+  DirectionalLight,
   Vector3,
   Mesh,
   StandardMaterial,
   Color3,
   VertexData,
-  MeshBuilder
+  MeshBuilder,
+  AxesViewer
 } from '@babylonjs/core';
 import Module from 'manifold-3d';
 import { Manifold } from 'manifold-3d/lib/manifoldCAD.js'
@@ -61,33 +63,62 @@ scene.clearColor = new Color3(0.94, 0.94, 0.94).toColor4();
 // CAD coordinates: Z is up
 const camera = new ArcRotateCamera(
   'camera',
-  Math.PI / 4, // alpha (horizontal rotation)
+  3 * Math.PI / 4, // alpha (horizontal rotation)
   Math.PI / 3, // beta (vertical rotation)
   300, // radius
   Vector3.Zero(),
   scene
 );
+camera.upVector = new Vector3(0, 0, 1); // CAD coordinates: Z is up
 camera.upperBetaLimit = Math.PI; // Allow camera to go all the way down
 camera.lowerRadiusLimit = 100;
 camera.upperRadiusLimit = 500;
 camera.attachControl(canvas, true);
 
-// Set up lighting
-const light = new HemisphericLight('light', new Vector3(0, 1, 1), scene);
-light.intensity = 0.8;
+// Set up lighting - match Three.js viewer approach
+// Ambient light for base illumination
+const ambientLight = new HemisphericLight('ambient', new Vector3(0, 0, 1), scene);
+ambientLight.intensity = 0.4;
+ambientLight.parent = camera;
+
+// Main light from upper-right-front for good face distinction
+const mainLight = new HemisphericLight('mainLight', new Vector3(1, 1, 1), scene);
+mainLight.intensity = 0.8;
+mainLight.parent = camera;
 
 // Create ground grid plane using MeshBuilder
 const groundSize = 500;
 const ground = MeshBuilder.CreateGround('ground', { width: groundSize, height: groundSize, subdivisions: 50 }, scene);
 
 const gridMaterial = new StandardMaterial('gridMaterial', scene);
-gridMaterial.diffuseColor = new Color3(0.9, 0.9, 0.9);
+gridMaterial.diffuseColor = new Color3(0.5, 0.5, 0.5);
 gridMaterial.specularColor = new Color3(0.1, 0.1, 0.1);
 gridMaterial.alpha = 0.5;
 gridMaterial.wireframe = true;
 
 ground.material = gridMaterial;
+ground.rotation.x = Math.PI / 2; // Rotate to XY plane
 ground.position.z = 0; // At Z=0 in CAD coordinates
+
+// Add custom axes at origin with flipped X
+const axisLength = 50;
+// X axis (red) - flipped direction
+const xAxis = MeshBuilder.CreateLines('xAxis', {
+  points: [new Vector3(0, 0, 0), new Vector3(-axisLength, 0, 0)]
+}, scene);
+xAxis.color = new Color3(1, 0, 0);
+
+// Y axis (green)
+const yAxis = MeshBuilder.CreateLines('yAxis', {
+  points: [new Vector3(0, 0, 0), new Vector3(0, axisLength, 0)]
+}, scene);
+yAxis.color = new Color3(0, 1, 0);
+
+// Z axis (blue)
+const zAxis = MeshBuilder.CreateLines('zAxis', {
+  points: [new Vector3(0, 0, 0), new Vector3(0, 0, axisLength)]
+}, scene);
+zAxis.color = new Color3(0, 0, 1);
 
 // Handle window resize
 window.addEventListener('resize', () => {
@@ -103,20 +134,30 @@ function manifoldToBabylonMesh(manifold: InstanceType<typeof Manifold>, name: st
   const vertexData = new VertexData();
 
   // Get vertex positions (numProp=3 means xyz)
-  const positions = Array.from(mesh.vertProperties);
+  // Flip X coordinate to match CAD orientation
+  const vertProps = mesh.vertProperties;
+  const positions: number[] = [];
+  for (let i = 0; i < vertProps.length; i += 3) {
+    positions.push(-vertProps[i]);     // Negate X
+    positions.push(vertProps[i + 1]);  // Y stays the same
+    positions.push(vertProps[i + 2]);  // Z stays the same
+  }
   vertexData.positions = positions;
 
   // Get triangle indices
   const indices = Array.from(mesh.triVerts);
   vertexData.indices = indices;
 
-  // Compute normals
+  // Compute flat normals for consistent face appearance (no triangle artifacts)
   const normals: number[] = [];
   VertexData.ComputeNormals(positions, indices, normals);
   vertexData.normals = normals;
 
   // Apply vertex data to mesh
   vertexData.applyToMesh(babylonMesh);
+
+  // Convert to flat shaded mesh
+  babylonMesh.convertToFlatShadedMesh();
 
   return babylonMesh;
 }
@@ -200,6 +241,11 @@ sphereCountSlider.addEventListener('input', () => {
 
 // Render loop
 engine.runRenderLoop(() => {
+  // Update light directions to follow camera - lights come FROM behind camera
+  const cameraDirection = camera.getDirection(Vector3.Forward());
+  mainLight.direction = cameraDirection.negate().add(new Vector3(-0.3, -0.3, 0));
+  ambientLight.direction = camera.getDirection(Vector3.Up()).negate();
+
   scene.render();
 });
 
