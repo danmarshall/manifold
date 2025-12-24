@@ -31,20 +31,21 @@ export function createCubeWithHole(
   params: CubeWithHoleParams = {}
 ) {
   const {
-    cubeSize = [100, 100, 100],
+    cubeSize = [100, 200, 60],
     cylinderRadius = 30,
     cylinderHeight = 150, // Taller than cube to ensure it goes all the way through
     radiusScale = 1.0
   } = params;
 
-  // Create a cube centered at origin
-  const cube = ManifoldClass.cube(cubeSize, true);
+  // Create a cube with corner at origin instead of centered
+  const cube = ManifoldClass.cube(cubeSize, false);
 
   // Create a cylinder along the Z-axis with scaled radius
-  // Make it taller than the cube so it goes all the way through
+  // Position it at the center of the cube's XY plane
   const scaledRadius = cylinderRadius * radiusScale;
-  const cylinder = ManifoldClass.cylinder(cylinderHeight, scaledRadius, scaledRadius, 0, true);
-  
+  const cylinder = ManifoldClass.cylinder(cylinderHeight, scaledRadius, scaledRadius, 0, false)
+    .translate([cubeSize[0] / 2, cubeSize[1] / 2, 0]);
+
   // Subtract the cylinder from the cube
   const result = cube.subtract(cylinder);
 
