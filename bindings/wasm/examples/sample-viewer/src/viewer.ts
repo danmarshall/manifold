@@ -24,7 +24,8 @@ const camera = new THREE.PerspectiveCamera(
   1,
   1000
 );
-camera.position.set(200, 200, 200);
+camera.position.set(200, -200, 200);
+camera.up.set(0, 0, 1); // CAD coordinates: Z is up
 camera.lookAt(0, 0, 0);
 
 // Set up lighting
