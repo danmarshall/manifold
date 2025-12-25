@@ -1,0 +1,18 @@
+{
+  "name": "sample-viewer-worker",
+  "version": "1.0.0",
+  "type": "module",
+  "main": "dist/geometry.worker.js",
+  "types": "dist/geometry.worker.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch"
+  },
+  "dependencies": {
+    "manifold-3d": "^2.5.1",
+    "my-3d-app": "file:../sample-consumer"
+  },
+  "devDependencies": {
+    "typescript": "^5.0.0"
+  }
+}

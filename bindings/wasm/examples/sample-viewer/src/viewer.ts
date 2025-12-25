@@ -5,6 +5,13 @@ import { SceneParams } from 'my-3d-app';
 import { setupScene, handleResize, animate } from './scene-setup';
 import { renderNodes } from './geometry-renderer';
 
+// Import worker from separate package
+// The worker package has restrictive TypeScript config to prevent DOM API usage
+const geometryWorker = new Worker(
+  new URL('../sample-viewer-worker/src/geometry.worker.ts', import.meta.url),
+  { type: 'module' }
+);
+
 // Get DOM elements
 const canvas = document.getElementById('canvas') as HTMLCanvasElement;
 const radiusScaleSlider = document.getElementById('radiusScale') as HTMLInputElement;
@@ -42,12 +49,6 @@ let currentGLTFNodes: any[] = [];
 // Debounce timer for slider input
 let debounceTimer: number | undefined;
 const DEBOUNCE_MS = 150; // Wait 150ms after last input before generating geometry
-
-// Initialize Web Worker for geometry generation
-const geometryWorker = new Worker(
-  new URL('./geometry.worker.ts', import.meta.url),
-  { type: 'module' }
-);
 
 // Handle messages from worker
 geometryWorker.onmessage = (e: MessageEvent) => {

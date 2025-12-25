@@ -828,6 +828,115 @@ dist/
 - ✅ **Production**: Optimized bundles with proper chunking
 - ✅ **Module resolution**: Import paths work the same in worker and main thread
 
+### Thread Boundary Enforcement
+
+To prevent accidental misuse of DOM APIs in the worker thread, the sample-viewer uses a **separate package** for worker code with restrictive TypeScript configuration.
+
+**Project structure:**
+```
+sample-viewer/
+  ├── src/                         # UI thread code
+  │   ├── viewer.ts                # Main application (uses DOM APIs)
+  │   ├── scene-setup.ts           # Three.js setup
+  │   └── geometry-renderer.ts     # Mesh rendering
+  ├── tsconfig.json                # lib: ["ES2020", "DOM"]
+  └── sample-viewer-worker/        # Separate worker package
+      ├── src/
+      │   └── geometry.worker.ts   # Worker thread code
+      ├── tsconfig.json            # lib: ["ES2020", "WebWorker"] - NO DOM!
+      ├── package.json
+      └── README.md
+```
+
+**Main viewer tsconfig.json:**
+```json
+{
+  "compilerOptions": {
+    "lib": ["ES2020", "DOM"]  // Full browser APIs available
+  }
+}
+```
+
+**Worker package tsconfig.json:**
+```json
+{
+  "compilerOptions": {
+    "lib": ["ES2020", "WebWorker"],  // Only WebWorker APIs
+    "types": []                       // No @types/node or other globals
+  }
+}
+```
+
+**What this prevents - compile-time errors:**
+
+```typescript
+// In geometry.worker.ts (worker thread)
+
+// ❌ ERROR: Cannot find name 'document'
+const div = document.createElement('div');
+
+// ❌ ERROR: Cannot find name 'window'
+window.localStorage.setItem('key', 'value');
+
+// ❌ ERROR: Cannot find name 'React'
+import React from 'react';
+
+// ❌ ERROR: JSX not available in WebWorker context
+const element = <div>Hello</div>;
+
+// ✅ OK: Worker APIs are available
+self.postMessage({ type: 'ready' });
+
+// ✅ OK: Can import and use manifold-3d
+import Module from 'manifold-3d';
+```
+
+**Why this matters:**
+
+Web Workers run in a **completely separate JavaScript context**:
+- Different global object (`self` vs `window`)
+- No access to DOM APIs
+- No shared memory (except through structured cloning/transferables)
+- Different available APIs
+
+**Benefits of package-based enforcement:**
+
+1. **Compile-time safety**: TypeScript prevents DOM usage in worker before runtime
+2. **Clear boundaries**: Folder structure makes thread context obvious
+3. **No singleton leakage**: Package boundary prevents accidental imports
+4. **Team safety**: New developers get immediate feedback if they violate boundaries
+5. **Refactoring confidence**: Can't accidentally move UI code into worker
+
+**Development workflow:**
+
+```bash
+# Build worker package first
+cd sample-viewer-worker
+npm install
+npm run build
+
+# Then run main viewer
+cd ..
+npm run dev
+```
+
+The main viewer imports the worker as:
+```typescript
+const geometryWorker = new Worker(
+  new URL('../sample-viewer-worker/src/geometry.worker.ts', import.meta.url),
+  { type: 'module' }
+);
+```
+
+**Alternative approach (not recommended):**
+You could keep everything in one package and just use different TypeScript lib settings, but:
+- ❌ Harder to enforce boundaries (same node_modules)
+- ❌ Risk of importing wrong modules
+- ❌ Less obvious which code runs where
+- ❌ Shared singletons could leak between contexts
+
+The separate package approach is more robust for production code.
+
 ## More Examples
 
 For more examples of using manifold-3d, see:
