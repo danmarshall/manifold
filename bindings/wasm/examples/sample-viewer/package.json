@@ -5,8 +5,9 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc && vite build",
-    "preview": "vite preview"
+    "build": "tsc && tsc --project tsconfig.worker.json && vite build",
+    "preview": "vite preview",
+    "type-check": "tsc --noEmit && tsc --project tsconfig.worker.json --noEmit"
   },
   "keywords": [
     "manifold",

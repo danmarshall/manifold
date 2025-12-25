@@ -6,10 +6,51 @@ A Three.js-based 3D viewer that renders shapes from the `my-3d-app` consumer lib
 
 - **Interactive UI**: Real-time sliders to control scene parameters
 - **Three.js Rendering**: Smooth 3D visualization with lighting and materials
+- **Web Worker Architecture**: Non-blocking geometry generation with WASM
+- **3MF & GLB Export**: Download buttons for 3D printing and web/AR/VR formats
+- **Thread Safety**: TypeScript compile-time enforcement preventing DOM usage in workers
 - **Parameter Control**:
   - Library Cylinder Radius Scale (0.1 to 2.0)
   - Sphere Count (1 to 12)
 - **Auto-rotation**: Scene automatically rotates for better viewing
+
+## Architecture: Thread Boundary Enforcement
+
+This project uses a **dual-tsconfig pattern** to prevent accidental DOM API usage in Web Workers:
+
+### Main UI Code (`src/*.ts`)
+- Compiled with `tsconfig.json`
+- Has access to `lib: ["ES2020", "DOM"]`
+- Can use `document`, `window`, React, etc.
+
+### Worker Code (`src/worker/*.ts`)
+- Compiled with `tsconfig.worker.json`
+- Restricted to `lib: ["ES2020", "WebWorker"]`
+- ❌ TypeScript errors if you try to use `document`, `window`, or any DOM APIs
+- ✅ Prevents runtime errors from incorrect API usage
+
+### Why This Matters
+
+Web Workers run in a separate thread without access to the DOM. Attempting to use DOM APIs in a worker causes runtime errors. This architecture catches these errors at **compile time**:
+
+```typescript
+// ❌ In src/worker/*.ts - TypeScript ERROR:
+const element = document.createElement('div'); // Cannot find name 'document'
+
+// ✅ In src/worker/*.ts - TypeScript OK:
+const worker = self; // WebWorker global scope
+```
+
+### Type Checking
+
+```bash
+# Check both UI and worker code:
+npm run type-check
+
+# Or separately:
+tsc --noEmit                                # Check UI code
+tsc --project tsconfig.worker.json --noEmit # Check worker code
+```
 
 ## Setup
 
