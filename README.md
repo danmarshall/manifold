@@ -47,6 +47,8 @@ Manifold has bindings to many other languages, some maintained in this repositor
 
 If you like OpenSCAD / JSCAD, you might also like ManifoldCAD - our own solid modelling web app where you script in JS/TS. This uses our npm package, [manifold-3d](https://www.npmjs.com/package/manifold-3d), built via WASM. It's not quite as fast as our raw C++, but it's hard to beat for interoperability.
 
+The JS/TS interface supports importing npm packages and creating reusable libraries. See the [JavaScript/TypeScript Usage Guide](./bindings/wasm/documents/JavaScript-TypeScript-Usage.md) for comprehensive documentation on using dependencies, bundling, and creating models with code.
+
 ### [Python Colab Example](https://colab.research.google.com/drive/1VxrFYHPSHZgUbl9TeWzCeovlpXrPQ5J5?usp=sharing)
 
 If you prefer Python to JS/TS, make your own copy of the example notebook above. It demonstrates interop between our [`manifold3d`](https://pypi.org/project/manifold3d/) PyPI library and the popular [`trimesh`](https://pypi.org/project/trimesh/) library, including showing the interactive model right in the notebook and saving 3D model output.

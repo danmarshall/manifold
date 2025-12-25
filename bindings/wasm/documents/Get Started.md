@@ -28,6 +28,23 @@ const ball = sphere(60, 100);
 const result = box.subtract(ball);
 ```
 
+## Using with ManifoldCAD
+
+If you want to use Manifold with the bundler and CDN imports (as in [ManifoldCAD.org](https://manifoldcad.org) or the CLI tool), you can import from `manifold-3d/manifoldCAD`:
+
+```typescript
+import {Manifold} from 'manifold-3d/manifoldCAD';
+
+const box = Manifold.cube([100, 100, 100], true);
+const ball = Manifold.sphere(60, 100);
+const result = box.subtract(ball);
+
+export default result;
+```
+
 ## Next steps
 
-In order to visualize Manifold mesh using Three.js library please check out our example [here](https://github.com/elalish/manifold/blob/master/bindings/wasm/examples/three.ts) 
+- **[JavaScript/TypeScript Usage Guide](./JavaScript-TypeScript-Usage.md)** - Learn about using dependencies, imports, bundling, and more
+- **[Three.js Integration Example](https://github.com/elalish/manifold/blob/master/bindings/wasm/examples/three.ts)** - Visualize Manifold meshes with Three.js
+- **[API Documentation](https://manifoldcad.org/jsdocs)** - Complete TypeScript API reference
+- **[Example Models](https://github.com/elalish/manifold/tree/master/bindings/wasm/test/examples)** - See how to create complex models 

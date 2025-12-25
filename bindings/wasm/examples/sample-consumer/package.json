@@ -1,0 +1,28 @@
+{
+  "name": "my-3d-app",
+  "version": "1.0.0",
+  "description": "A library that consumes my-manifold-shapes and creates scenes",
+  "main": "dist/app.js",
+  "types": "dist/app.d.ts",
+  "type": "module",
+  "scripts": {
+    "build": "tsc"
+  },
+  "keywords": [
+    "manifold",
+    "3d"
+  ],
+  "author": "",
+  "license": "MIT",
+  "peerDependencies": {
+    "manifold-3d": "^3.3.2"
+  },
+  "dependencies": {
+    "my-manifold-shapes": "file:../sample-library"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "manifold-3d": "^3.3.2",
+    "typescript": "^5.0.0"
+  }
+}

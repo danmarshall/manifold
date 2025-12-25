@@ -1,0 +1,283 @@
+// Three.js viewer for shapes created by my-3d-app
+// Refactored into modular architecture with Web Worker support for geometry generation
+import * as THREE from 'three';
+import { SceneParams } from 'my-3d-app';
+import { setupScene, handleResize, animate } from './scene-setup';
+import { renderNodes } from './geometry-renderer';
+
+// Import worker from worker subdirectory
+// Vite will bundle this as a separate worker file
+const geometryWorker = new Worker(
+  new URL('./worker/geometry.worker.ts', import.meta.url),
+  { type: 'module' }
+);
+
+// Get DOM elements
+const canvas = document.getElementById('canvas') as HTMLCanvasElement;
+const radiusScaleSlider = document.getElementById('radiusScale') as HTMLInputElement;
+const edgeLengthSlider = document.getElementById('sphereCount') as HTMLInputElement;
+const radiusValue = document.getElementById('radiusValue') as HTMLSpanElement;
+const edgeLengthValue = document.getElementById('sphereValue') as HTMLSpanElement;
+const lockCameraCheckbox = document.getElementById('lockCamera') as HTMLInputElement;
+const download3mfButton = document.getElementById('download3mf') as HTMLButtonElement;
+const downloadGlbButton = document.getElementById('downloadglb') as HTMLButtonElement;
+const status = document.getElementById('status') as HTMLDivElement;
+
+// localStorage key for camera lock preference
+const CAMERA_LOCK_KEY = 'manifold-viewer-camera-lock';
+
+// Load camera lock preference from localStorage
+const savedLockState = localStorage.getItem(CAMERA_LOCK_KEY);
+if (savedLockState !== null) {
+  lockCameraCheckbox.checked = savedLockState === 'true';
+}
+
+// Set up Three.js scene, camera, renderer, and controls
+const { scene, camera, renderer, controls } = setupScene(canvas);
+
+// Group to hold all mesh objects
+const meshGroup = new THREE.Group();
+scene.add(meshGroup);
+
+// Track worker ready state and request IDs for cancellation
+let workerReady = false;
+let pendingUpdate = false;
+let currentRequestId = 0;
+
+// Store current GLTFNodes for export
+let currentGLTFNodes: any[] = [];
+
+// Debounce timer for slider input
+let debounceTimer: number | undefined;
+const DEBOUNCE_MS = 150; // Wait 150ms after last input before generating geometry
+
+// Handle messages from worker
+geometryWorker.onmessage = (e: MessageEvent) => {
+  if (e.data.type === 'ready') {
+    workerReady = true;
+    status.textContent = 'Worker ready';
+    status.style.color = '#4CAF50';
+
+    // If we have a pending update, execute it now
+    if (pendingUpdate) {
+      pendingUpdate = false;
+      updateScene();
+    }
+  } else if (e.data.type === 'geometry') {
+    // Check if this is the most recent request (discard outdated results)
+    if (e.data.requestId !== currentRequestId) {
+      // Outdated result - ignore it
+      return;
+    }
+
+    const meshes = e.data.meshes;
+    const lockCamera = lockCameraCheckbox.checked;
+    
+    // Store GLTFNodes for export
+    currentGLTFNodes = e.data.gltfNodes || [];
+
+    try {
+      renderNodes(meshes, scene, camera, controls, lockCamera, meshGroup);
+      status.textContent = 'Ready';
+      status.style.color = '#4CAF50';
+    } catch (error) {
+      status.textContent = `Rendering error: ${error}`;
+      status.style.color = '#f44336';
+    }
+  } else if (e.data.type === '3mf') {
+    // Handle 3MF export result
+    try {
+      const blob = new Blob([e.data.buffer], { type: 'model/3mf' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = 'model.3mf';
+      link.click();
+      URL.revokeObjectURL(url);
+      
+      status.textContent = '3MF downloaded successfully';
+      status.style.color = '#4CAF50';
+    } catch (error) {
+      status.textContent = `Download error: ${error}`;
+      status.style.color = '#f44336';
+    }
+    download3mfButton.disabled = false;
+    download3mfButton.textContent = 'Download 3MF';
+  } else if (e.data.type === 'glb') {
+    // Handle GLB export result
+    try {
+      const blob = new Blob([e.data.buffer], { type: 'model/gltf-binary' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = 'model.glb';
+      link.click();
+      URL.revokeObjectURL(url);
+      
+      status.textContent = 'GLB downloaded successfully';
+      status.style.color = '#4CAF50';
+    } catch (error) {
+      status.textContent = `Download error: ${error}`;
+      status.style.color = '#f44336';
+    }
+    downloadGlbButton.disabled = false;
+    downloadGlbButton.textContent = 'Download GLB';
+  } else if (e.data.type === 'error') {
+    // Only show error if it's from the current request
+    if (e.data.requestId === currentRequestId) {
+      status.textContent = `Error: ${e.data.message}`;
+      status.style.color = '#f44336';
+    }
+  }
+};
+
+// Handle worker errors
+geometryWorker.onerror = (error) => {
+  status.textContent = `Worker error: ${error.message}`;
+  status.style.color = '#f44336';
+};
+
+// Handle worker message errors
+geometryWorker.onmessageerror = (error) => {
+  status.textContent = 'Worker message error';
+  status.style.color = '#f44336';
+};
+
+/**
+ * Update scene with new parameters
+ * Sends parameters to worker for geometry generation with unique request ID
+ */
+function updateScene() {
+  // Check if worker is ready
+  if (!workerReady) {
+    pendingUpdate = true;
+    status.textContent = 'Waiting for worker...';
+    status.style.color = '#FF9800';
+    return;
+  }
+
+  // Generate unique request ID for this update
+  const requestId = ++currentRequestId;
+
+  const params: SceneParams = {
+    libraryRadiusScale: parseFloat(radiusScaleSlider.value),
+    edgeLength: parseFloat(edgeLengthSlider.value),
+  };
+
+  status.textContent = 'Generating geometry...';
+  status.style.color = '#2196F3';
+
+  // Send parameters to worker with request ID
+  try {
+    geometryWorker.postMessage({ 
+      type: 'generate',
+      requestId,
+      params 
+    });
+  } catch (error) {
+    status.textContent = `Error: ${error}`;
+    status.style.color = '#f44336';
+  }
+}
+
+/**
+ * Debounced scene update - waits for user to stop adjusting sliders
+ */
+function debouncedUpdateScene() {
+  clearTimeout(debounceTimer);
+  debounceTimer = setTimeout(() => {
+    updateScene();
+  }, DEBOUNCE_MS);
+}
+
+// Update display values and regenerate on slider change (debounced)
+radiusScaleSlider.addEventListener('input', () => {
+  radiusValue.textContent = radiusScaleSlider.value;
+  debouncedUpdateScene();
+});
+
+edgeLengthSlider.addEventListener('input', () => {
+  edgeLengthValue.textContent = edgeLengthSlider.value;
+  debouncedUpdateScene();
+});
+
+// Handle camera lock checkbox
+lockCameraCheckbox.addEventListener('change', () => {
+  // Save preference to localStorage
+  localStorage.setItem(CAMERA_LOCK_KEY, lockCameraCheckbox.checked.toString());
+
+  // If unchecking, immediately reposition camera to current model
+  if (!lockCameraCheckbox.checked) {
+    updateScene();
+  }
+});
+
+// Handle 3MF download button
+download3mfButton.addEventListener('click', async () => {
+  if (currentGLTFNodes.length === 0) {
+    status.textContent = 'No model to export';
+    status.style.color = '#f44336';
+    return;
+  }
+  
+  download3mfButton.disabled = true;
+  download3mfButton.textContent = 'Exporting...';
+  status.textContent = 'Generating 3MF file...';
+  status.style.color = '#2196F3';
+  
+  try {
+    // Request 3MF export from worker
+    geometryWorker.postMessage({
+      type: 'export3mf',
+      gltfNodes: currentGLTFNodes
+    });
+  } catch (error) {
+    status.textContent = `Export error: ${error}`;
+    status.style.color = '#f44336';
+    download3mfButton.disabled = false;
+    download3mfButton.textContent = 'Download 3MF';
+  }
+});
+
+// Handle GLB download button
+downloadGlbButton.addEventListener('click', async () => {
+  if (currentGLTFNodes.length === 0) {
+    status.textContent = 'No model to export';
+    status.style.color = '#f44336';
+    return;
+  }
+  
+  downloadGlbButton.disabled = true;
+  downloadGlbButton.textContent = 'Exporting...';
+  status.textContent = 'Generating GLB file...';
+  status.style.color = '#2196F3';
+  
+  try {
+    // Request GLB export from worker
+    geometryWorker.postMessage({
+      type: 'exportglb',
+      gltfNodes: currentGLTFNodes
+    });
+  } catch (error) {
+    status.textContent = `Export error: ${error}`;
+    status.style.color = '#f44336';
+    downloadGlbButton.disabled = false;
+    downloadGlbButton.textContent = 'Download GLB';
+  }
+});
+
+// Handle window resize
+window.addEventListener('resize', () => {
+  handleResize(camera, renderer);
+});
+
+// Start animation loop
+animate(renderer, scene, camera, controls);
+
+// Initial scene generation
+
+status.textContent = 'Initializing...';
+status.style.color = '#2196F3';
+
+// updateScene() will be called automatically when worker sends 'ready' message
+updateScene();

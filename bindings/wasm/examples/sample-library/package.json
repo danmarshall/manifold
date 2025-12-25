@@ -1,0 +1,27 @@
+{
+  "name": "my-manifold-shapes",
+  "version": "1.0.0",
+  "description": "A sample library that creates 3D shapes using manifold-3d",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "type": "module",
+  "scripts": {
+    "build": "tsc",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "manifold",
+    "3d",
+    "shapes"
+  ],
+  "author": "",
+  "license": "MIT",
+  "peerDependencies": {
+    "manifold-3d": "^3.3.2"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "manifold-3d": "^3.3.2",
+    "typescript": "^5.0.0"
+  }
+}
