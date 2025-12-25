@@ -38,23 +38,33 @@ const geometryWorker = new Worker(
 
 // Handle messages from worker
 geometryWorker.onmessage = (e: MessageEvent) => {
+  console.log('Main: Received message from worker', e.data);
+  
   if (e.data.type === 'geometry') {
     const nodes = e.data.nodes;
+    console.log('Main: Received geometry nodes', { 
+      nodeCount: nodes?.length, 
+      nodes: nodes 
+    });
+    
     const lockCamera = lockCameraCheckbox.checked;
 
     try {
       renderNodes(nodes, scene, camera, controls, lockCamera, meshGroup);
+      console.log('Main: Geometry rendered successfully');
       status.textContent = 'Ready';
       status.style.color = '#4CAF50';
     } catch (error) {
-      console.error('Error rendering geometry:', error);
+      console.error('Main: Error rendering geometry:', error);
       status.textContent = `Rendering error: ${error}`;
       status.style.color = '#f44336';
     }
   } else if (e.data.type === 'error') {
-    console.error('Worker error:', e.data.message);
+    console.error('Main: Worker error:', e.data.message);
     status.textContent = `Error: ${e.data.message}`;
     status.style.color = '#f44336';
+  } else {
+    console.warn('Main: Unknown message type from worker', e.data);
   }
 };
 
@@ -75,11 +85,13 @@ function updateScene() {
     edgeLength: parseFloat(edgeLengthSlider.value),
   };
 
+  console.log('Main: Updating scene with params', params);
   status.textContent = 'Generating geometry...';
   status.style.color = '#2196F3';
 
   // Send parameters to worker
   geometryWorker.postMessage(params);
+  console.log('Main: Message sent to worker');
 }
 
 // Update display values and regenerate on slider change

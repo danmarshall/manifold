@@ -122,22 +122,62 @@ export function renderNodes(
   lockCamera: boolean,
   meshGroup: THREE.Group
 ): void {
+  console.log('Renderer: Starting renderNodes', { 
+    nodeCount: nodes?.length,
+    lockCamera,
+    meshGroupChildrenBefore: meshGroup.children.length 
+  });
+  
   // Clear previous meshes
   meshGroup.clear();
+  console.log('Renderer: Cleared previous meshes');
   
   // Add new meshes
-  nodes.forEach(node => {
+  nodes.forEach((node, index) => {
+    console.log(`Renderer: Processing node ${index}`, {
+      numVert: node.numVert,
+      numTri: node.numTri,
+      hasMaterial: !!node.material
+    });
+    
     const geometry = gltfNodeToThreeGeometry(node);
+    console.log(`Renderer: Created geometry for node ${index}`, {
+      positionCount: geometry.attributes.position.count,
+      indexCount: geometry.index?.count
+    });
+    
     const material = createMaterial(node);
+    console.log(`Renderer: Created material for node ${index}`, {
+      type: material.type,
+      color: (material as any).color
+    });
+    
     const mesh = new THREE.Mesh(geometry, material);
     meshGroup.add(mesh);
+    console.log(`Renderer: Added mesh ${index} to group`);
+  });
+  
+  console.log('Renderer: All meshes added', {
+    meshGroupChildren: meshGroup.children.length
   });
   
   // Position camera if not locked
   if (!lockCamera) {
+    console.log('Renderer: Positioning camera (unlocked)');
     const bbox = calculateCombinedBoundingBox(nodes);
+    console.log('Renderer: Bounding box', {
+      min: bbox.min,
+      max: bbox.max,
+      center: bbox.getCenter(new THREE.Vector3()),
+      size: bbox.getSize(new THREE.Vector3())
+    });
     positionCamera(camera, bbox, controls);
+    console.log('Renderer: Camera positioned', {
+      position: camera.position,
+      target: controls.target
+    });
   } else {
+    console.log('Renderer: Camera locked, only updating clipping planes');
     // Still update clipping planes even when camera is locked
     const bbox = calculateCombinedBoundingBox(nodes);
     const size = bbox.getSize(new THREE.Vector3());
@@ -145,5 +185,11 @@ export function renderNodes(
     camera.near = maxDim * 0.01;
     camera.far = maxDim * 10;
     camera.updateProjectionMatrix();
+    console.log('Renderer: Clipping planes updated', {
+      near: camera.near,
+      far: camera.far
+    });
   }
+  
+  console.log('Renderer: renderNodes complete');
 }
