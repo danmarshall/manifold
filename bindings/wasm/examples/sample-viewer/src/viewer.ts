@@ -35,104 +35,49 @@ let workerReady = false;
 let pendingUpdate = false;
 
 // Initialize Web Worker for geometry generation
-console.log('Main: Creating Web Worker for geometry generation...');
-console.log('Main: Worker URL:', new URL('./geometry.worker.ts', import.meta.url).href);
-
 const geometryWorker = new Worker(
   new URL('./geometry.worker.ts', import.meta.url),
   { type: 'module' }
 );
 
-console.log('Main: ✓ Worker created successfully');
-console.log('Main: Worker object:', geometryWorker);
-
 // Handle messages from worker
 geometryWorker.onmessage = (e: MessageEvent) => {
-  console.log('=== Main: RECEIVED MESSAGE FROM WORKER ===');
-  console.log('Main: Message data:', e.data);
-  console.log('Main: Message type:', e.data?.type);
-  
   if (e.data.type === 'ready') {
-    console.log('Main: ✓ Worker is ready!');
     workerReady = true;
     status.textContent = 'Worker ready';
     status.style.color = '#4CAF50';
-    
+
     // If we have a pending update, execute it now
     if (pendingUpdate) {
-      console.log('Main: Executing pending update...');
       pendingUpdate = false;
       updateScene();
     }
   } else if (e.data.type === 'geometry') {
     const meshes = e.data.meshes;
-    console.log('Main: Received geometry meshes', { 
-      meshCount: meshes?.length,
-      isArray: Array.isArray(meshes),
-      meshTypes: meshes ? meshes.map((m: any) => typeof m) : 'no meshes'
-    });
-    
-    // Log each mesh in detail
-    if (meshes && Array.isArray(meshes)) {
-      meshes.forEach((mesh: any, index: number) => {
-        console.log(`Main: Mesh ${index}:`, {
-          type: typeof mesh,
-          keys: mesh ? Object.keys(mesh) : 'no keys',
-          name: mesh?.name,
-          numVert: mesh?.numVert,
-          numTri: mesh?.numTri,
-          hasVertProperties: mesh && 'vertProperties' in mesh,
-          hasTriVerts: mesh && 'triVerts' in mesh,
-          vertPropertiesLength: mesh?.vertProperties?.length,
-          triVertsLength: mesh?.triVerts?.length,
-          material: mesh?.material
-        });
-      });
-    }
-    
     const lockCamera = lockCameraCheckbox.checked;
-    console.log('Main: Camera lock state:', lockCamera);
 
     try {
-      console.log('Main: Calling renderNodes()...');
       renderNodes(meshes, scene, camera, controls, lockCamera, meshGroup);
-      console.log('Main: ✓ Geometry rendered successfully');
-      console.log('Main: Scene now has', scene.children.length, 'children');
-      console.log('Main: MeshGroup now has', meshGroup.children.length, 'children');
       status.textContent = 'Ready';
       status.style.color = '#4CAF50';
     } catch (error) {
-      console.error('Main: ✗ Error rendering geometry:', error);
-      console.error('Main: Error stack:', error instanceof Error ? error.stack : 'no stack');
       status.textContent = `Rendering error: ${error}`;
       status.style.color = '#f44336';
     }
   } else if (e.data.type === 'error') {
-    console.error('Main: Worker error:', e.data.message);
     status.textContent = `Error: ${e.data.message}`;
     status.style.color = '#f44336';
-  } else {
-    console.warn('Main: Unknown message type from worker', e.data);
   }
-  console.log('=== Main: MESSAGE HANDLING COMPLETE ===');
 };
 
 // Handle worker errors
 geometryWorker.onerror = (error) => {
-  console.error('=== Main: WORKER ERROR EVENT ===');
-  console.error('Main: Error object:', error);
-  console.error('Main: Error message:', error.message);
-  console.error('Main: Error filename:', error.filename);
-  console.error('Main: Error lineno:', error.lineno);
-  console.error('Main: Error colno:', error.colno);
   status.textContent = `Worker error: ${error.message}`;
   status.style.color = '#f44336';
 };
 
-// Log when worker terminates
+// Handle worker message errors
 geometryWorker.onmessageerror = (error) => {
-  console.error('=== Main: WORKER MESSAGE ERROR ===');
-  console.error('Main: Message error:', error);
   status.textContent = 'Worker message error';
   status.style.color = '#f44336';
 };
@@ -142,44 +87,26 @@ geometryWorker.onmessageerror = (error) => {
  * Sends parameters to worker for geometry generation
  */
 function updateScene() {
-  console.log('=== Main: UPDATE SCENE CALLED ===');
-  
   // Check if worker is ready
   if (!workerReady) {
-    console.log('Main: Worker not ready yet, marking update as pending');
     pendingUpdate = true;
     status.textContent = 'Waiting for worker...';
     status.style.color = '#FF9800';
     return;
   }
-  
+
   const params: SceneParams = {
     libraryRadiusScale: parseFloat(radiusScaleSlider.value),
     edgeLength: parseFloat(edgeLengthSlider.value),
   };
 
-  console.log('Main: Parameters:', params);
-  console.log('Main: Worker state:', {
-    worker: geometryWorker,
-    workerReady: workerReady,
-    hasOnMessage: !!geometryWorker.onmessage,
-    hasOnError: !!geometryWorker.onerror
-  });
-  
   status.textContent = 'Generating geometry...';
   status.style.color = '#2196F3';
 
   // Send parameters to worker
-  console.log('Main: About to post message to worker...');
   try {
     geometryWorker.postMessage(params);
-    console.log('Main: ✓ Message posted to worker successfully');
   } catch (error) {
-    console.error('Main: ✗ Error posting message to worker:', error);
-    console.error('Main: Error details:', {
-      message: error instanceof Error ? error.message : String(error),
-      stack: error instanceof Error ? error.stack : 'no stack'
-    });
     status.textContent = `Error: ${error}`;
     status.style.color = '#f44336';
   }
@@ -216,10 +143,6 @@ window.addEventListener('resize', () => {
 animate(renderer, scene, camera, controls);
 
 // Initial scene generation
-console.log('=== Main: INITIALIZATION COMPLETE ===');
-console.log('Main: Scene setup:', { scene, camera, renderer, controls });
-console.log('Main: Worker setup:', { geometryWorker });
-console.log('Main: Waiting for worker ready message, then will call updateScene()');
 
 status.textContent = 'Initializing...';
 status.style.color = '#2196F3';

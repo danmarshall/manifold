@@ -1,20 +1,8 @@
 // Web Worker for generating geometry in background thread
 // This keeps the UI responsive during complex geometry generation
-console.log('Worker: ========== WORKER SCRIPT EXECUTING ==========');
-console.log('Worker: Top-level code running');
-
-// Using manifold-3d/lib/manifoldCAD.js which includes both Module and GLTFNode
-console.log('Worker: About to import Module from manifold-3d/lib/manifoldCAD.js...');
 import Module from 'manifold-3d';
-console.log('Worker: ✓ Module imported successfully');
-
-console.log('Worker: About to import GLTFNode...');
 import { GLTFNode } from 'manifold-3d/lib/manifoldCAD.js';
-console.log('Worker: ✓ GLTFNode imported successfully');
-
-console.log('Worker: About to import createScene from my-3d-app...');
 import { createScene, SceneParams } from 'my-3d-app';
-console.log('Worker: ✓ createScene imported successfully');
 
 // Type imports for TypeScript - these are type-only, not runtime values
 import type { Manifold as ManifoldType } from 'manifold-3d/lib/manifoldCAD.js';
@@ -23,149 +11,59 @@ import type { Manifold as ManifoldType } from 'manifold-3d/lib/manifoldCAD.js';
 let ManifoldClass: (typeof ManifoldType) | null = null;
 const GLTFNodeClass = GLTFNode; // GLTFNode is imported from manifoldCAD, not from wasm
 
-console.log('Worker: All imports complete');
-console.log('Worker: GLTFNodeClass type:', typeof GLTFNodeClass);
-console.log('Worker: Module type:', typeof Module);
-
 // Initialize WASM module once when worker starts
 async function initializeWASM() {
   if (!ManifoldClass) {
-    console.log('Worker: Step 1 - Starting WASM initialization');
-    console.log('Worker: Step 2 - Calling Module()');
 
     try {
       const wasm = await Module();
-      console.log('Worker: Step 3 - Module() returned successfully', {
-        wasmType: typeof wasm,
-        wasmKeys: Object.keys(wasm).slice(0, 20)
-      });
-
-      console.log('Worker: Step 4 - Calling wasm.setup()');
       wasm.setup();
-      console.log('Worker: Step 5 - setup() completed');
 
-      console.log('Worker: Step 6 - Extracting Manifold using destructuring (like three.ts line 22)');
       // Following the pattern from bindings/wasm/examples/three.ts line 22
       // Note: GLTFNode is NOT in wasm, it's imported from manifoldCAD module
       const { Manifold } = wasm;
       ManifoldClass = Manifold;
 
-      console.log('Worker: Step 7 - Classes extracted', {
-        hasManifold: !!ManifoldClass,
-        ManifoldType: typeof ManifoldClass,
-        hasCube: typeof ManifoldClass?.cube,
-        hasCylinder: typeof ManifoldClass?.cylinder,
-        hasSphere: typeof ManifoldClass?.sphere,
-        hasGLTFNode: !!GLTFNodeClass,
-        GLTFNodeType: typeof GLTFNodeClass
-      });
-
-      console.log('Worker: Step 8 - WASM initialization complete!');
-
       // Send ready message to main thread
-      console.log('Worker: Sending ready message to main thread');
       self.postMessage({ type: 'ready' });
-      console.log('Worker: ✓ Ready message sent');
     } catch (error) {
-      console.error('Worker: FATAL ERROR during WASM initialization', error);
-      console.error('Worker: Error details', {
-        message: error instanceof Error ? error.message : String(error),
-        stack: error instanceof Error ? error.stack : 'no stack',
-        error: error
-      });
       self.postMessage({
         type: 'error',
         message: `WASM initialization failed: ${error instanceof Error ? error.message : String(error)}`
       });
       throw error;
     }
-  } else {
-    console.log('Worker: WASM already initialized, skipping');
   }
 }
 
 // Start initialization immediately when worker loads
-console.log('Worker: Worker script loaded, starting initialization...');
 initializeWASM();
 
 // Handle messages from main thread
 self.onmessage = async (e: MessageEvent<SceneParams>) => {
-  console.log('=== Worker: NEW MESSAGE RECEIVED ===');
-  console.log('Worker: Message data:', e.data);
-  console.log('Worker: Message type:', typeof e.data);
-
   try {
     // Wait for WASM to be initialized (should already be done by now)
     if (!ManifoldClass) {
-      console.log('Worker: WASM not yet initialized, waiting...');
       await initializeWASM();
     }
-    console.log('Worker: ✓ WASM is ready');
 
     // Generate geometry
     const params = e.data;
-    console.log('Worker: Preparing to generate geometry');
-    console.log('Worker: Parameters:', JSON.stringify(params, null, 2));
-    console.log('Worker: State check:', {
-      hasManifoldClass: !!ManifoldClass,
-      ManifoldClassType: typeof ManifoldClass,
-      hasGLTFNodeClass: !!GLTFNodeClass,
-      GLTFNodeClassType: typeof GLTFNodeClass
-    });
-
-    console.log('Worker: Calling createScene()...');
     const sceneResult = createScene(ManifoldClass!, GLTFNodeClass!, params);
-    console.log('Worker: ✓ createScene() returned', {
-      resultType: typeof sceneResult,
-      isArray: Array.isArray(sceneResult),
-      arrayLength: Array.isArray(sceneResult) ? sceneResult.length : 'N/A',
-      firstItem: Array.isArray(sceneResult) ? typeof sceneResult[0] : typeof sceneResult
-    });
 
     // Ensure we always return an array
     const nodes = Array.isArray(sceneResult) ? sceneResult : [sceneResult];
-    console.log('Worker: Processed into array', {
-      nodeCount: nodes.length,
-      nodeTypes: nodes.map(n => typeof n)
-    });
 
-    // Log detailed info about each node and extract mesh data
+    // Extract mesh data
     const meshDataArray: any[] = [];
 
     nodes.forEach((node, index) => {
-      console.log(`Worker: Node ${index} details:`, {
-        type: typeof node,
-        constructor: node?.constructor?.name,
-        hasManifold: 'manifold' in node,
-        hasMaterial: 'material' in node,
-        hasName: 'name' in node,
-        name: node.name,
-        manifoldType: node.manifold ? typeof node.manifold : 'no manifold',
-        manifoldConstructor: node.manifold?.constructor?.name,
-        hasGetMesh: node.manifold && typeof node.manifold.getMesh === 'function',
-        material: node.material,
-        keys: Object.keys(node)
-      });
-
       // Extract mesh data from the GLTFNode's manifold
       // GLTFNode objects contain WASM references that can't be sent through postMessage
       // So we need to extract the raw mesh data here in the worker
       if (node.manifold && typeof node.manifold.getMesh === 'function') {
         try {
-          console.log(`Worker: Extracting mesh from node ${index}...`);
           const mesh = node.manifold.getMesh();
-          console.log(`Worker: Mesh extracted:`, {
-            meshType: typeof mesh,
-            meshConstructor: mesh?.constructor?.name,
-            hasNumVert: 'numVert' in mesh,
-            numVert: mesh.numVert,
-            hasNumTri: 'numTri' in mesh,
-            numTri: mesh.numTri,
-            hasVertProperties: 'vertProperties' in mesh,
-            hasTriVerts: 'triVerts' in mesh,
-            vertPropertiesLength: mesh.vertProperties?.length,
-            triVertsLength: mesh.triVerts?.length
-          });
 
           // Convert to plain object that can be sent through postMessage
           const meshData = {
@@ -179,43 +77,18 @@ self.onmessage = async (e: MessageEvent<SceneParams>) => {
             numProp: mesh.numProp
           };
 
-          console.log(`Worker: Mesh data prepared for node ${index}:`, {
-            name: meshData.name,
-            numVert: meshData.numVert,
-            numTri: meshData.numTri,
-            vertPropertiesLength: meshData.vertProperties.length,
-            triVertsLength: meshData.triVerts.length,
-            firstVert: meshData.vertProperties.slice(0, 3),
-            firstTri: meshData.triVerts.slice(0, 3)
-          });
-
           meshDataArray.push(meshData);
         } catch (err) {
-          console.error(`Worker: Error extracting mesh from node ${index}:`, err);
           throw err;
         }
       } else {
-        console.error(`Worker: Node ${index} has no manifold or getMesh method!`);
         throw new Error(`Node ${index} (${node.name}) has no valid manifold object`);
       }
     });
 
-    console.log('Worker: All mesh data extracted', {
-      meshCount: meshDataArray.length,
-      meshNames: meshDataArray.map(m => m.name)
-    });
-
     // Send mesh data back to main thread
-    console.log('Worker: Posting message to main thread...');
     self.postMessage({ type: 'geometry', meshes: meshDataArray });
-    console.log('Worker: ✓ Message posted successfully');
-    console.log('=== Worker: MESSAGE HANDLING COMPLETE ===');
   } catch (error) {
-    console.error('=== Worker: FATAL ERROR ===');
-    console.error('Worker: Error object:', error);
-    console.error('Worker: Error message:', error instanceof Error ? error.message : String(error));
-    console.error('Worker: Error stack:', error instanceof Error ? error.stack : 'no stack trace');
-    console.error('Worker: Error name:', error instanceof Error ? error.name : 'unknown');
     self.postMessage({
       type: 'error',
       message: error instanceof Error ? error.message : String(error)
