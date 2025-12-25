@@ -100,7 +100,9 @@ self.onmessage = async (e: MessageEvent<SceneParams>) => {
       nodeTypes: nodes.map(n => typeof n)
     });
     
-    // Log detailed info about each node
+    // Log detailed info about each node and extract mesh data
+    const meshDataArray: any[] = [];
+    
     nodes.forEach((node, index) => {
       console.log(`Worker: Node ${index} details:`, {
         type: typeof node,
@@ -116,29 +118,67 @@ self.onmessage = async (e: MessageEvent<SceneParams>) => {
         keys: Object.keys(node)
       });
       
-      // If node has a manifold, try to get mesh info
+      // Extract mesh data from the GLTFNode's manifold
+      // GLTFNode objects contain WASM references that can't be sent through postMessage
+      // So we need to extract the raw mesh data here in the worker
       if (node.manifold && typeof node.manifold.getMesh === 'function') {
         try {
+          console.log(`Worker: Extracting mesh from node ${index}...`);
           const mesh = node.manifold.getMesh();
-          console.log(`Worker: Node ${index} mesh from manifold:`, {
+          console.log(`Worker: Mesh extracted:`, {
             meshType: typeof mesh,
             meshConstructor: mesh?.constructor?.name,
             hasNumVert: 'numVert' in mesh,
+            numVert: mesh.numVert,
             hasNumTri: 'numTri' in mesh,
+            numTri: mesh.numTri,
+            hasVertProperties: 'vertProperties' in mesh,
+            hasTriVerts: 'triVerts' in mesh,
+            vertPropertiesLength: mesh.vertProperties?.length,
+            triVertsLength: mesh.triVerts?.length
+          });
+          
+          // Convert to plain object that can be sent through postMessage
+          const meshData = {
+            name: node.name,
+            material: node.material,
+            // Copy the mesh data arrays
             numVert: mesh.numVert,
             numTri: mesh.numTri,
-            hasGetVert: typeof mesh.getVert === 'function',
-            hasGetTri: typeof mesh.getTri === 'function'
+            vertProperties: Array.from(mesh.vertProperties), // Float32Array to regular array
+            triVerts: Array.from(mesh.triVerts), // Uint32Array to regular array
+            numProp: mesh.numProp
+          };
+          
+          console.log(`Worker: Mesh data prepared for node ${index}:`, {
+            name: meshData.name,
+            numVert: meshData.numVert,
+            numTri: meshData.numTri,
+            vertPropertiesLength: meshData.vertProperties.length,
+            triVertsLength: meshData.triVerts.length,
+            firstVert: meshData.vertProperties.slice(0, 3),
+            firstTri: meshData.triVerts.slice(0, 3)
           });
+          
+          meshDataArray.push(meshData);
         } catch (err) {
-          console.error(`Worker: Error getting mesh from node ${index}:`, err);
+          console.error(`Worker: Error extracting mesh from node ${index}:`, err);
+          throw err;
         }
+      } else {
+        console.error(`Worker: Node ${index} has no manifold or getMesh method!`);
+        throw new Error(`Node ${index} (${node.name}) has no valid manifold object`);
       }
     });
+    
+    console.log('Worker: All mesh data extracted', {
+      meshCount: meshDataArray.length,
+      meshNames: meshDataArray.map(m => m.name)
+    });
 
-    // Send geometry back to main thread
+    // Send mesh data back to main thread
     console.log('Worker: Posting message to main thread...');
-    self.postMessage({ type: 'geometry', nodes });
+    self.postMessage({ type: 'geometry', meshes: meshDataArray });
     console.log('Worker: ✓ Message posted successfully');
     console.log('=== Worker: MESSAGE HANDLING COMPLETE ===');
   } catch (error) {

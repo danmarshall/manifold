@@ -43,30 +43,27 @@ geometryWorker.onmessage = (e: MessageEvent) => {
   console.log('Main: Message type:', e.data?.type);
   
   if (e.data.type === 'geometry') {
-    const nodes = e.data.nodes;
-    console.log('Main: Received geometry nodes', { 
-      nodeCount: nodes?.length,
-      isArray: Array.isArray(nodes),
-      nodeTypes: nodes ? nodes.map((n: any) => typeof n) : 'no nodes'
+    const meshes = e.data.meshes;
+    console.log('Main: Received geometry meshes', { 
+      meshCount: meshes?.length,
+      isArray: Array.isArray(meshes),
+      meshTypes: meshes ? meshes.map((m: any) => typeof m) : 'no meshes'
     });
     
-    // Log each node in detail
-    if (nodes && Array.isArray(nodes)) {
-      nodes.forEach((node: any, index: number) => {
-        console.log(`Main: Node ${index}:`, {
-          type: typeof node,
-          constructor: node?.constructor?.name,
-          keys: node ? Object.keys(node) : 'no keys',
-          hasNumVert: node && 'numVert' in node,
-          hasNumTri: node && 'numTri' in node,
-          numVert: node?.numVert,
-          numTri: node?.numTri,
-          hasGetVert: node && typeof node.getVert === 'function',
-          hasGetTri: node && typeof node.getTri === 'function',
-          hasManifold: node && 'manifold' in node,
-          hasMaterial: node && 'material' in node,
-          name: node?.name,
-          material: node?.material
+    // Log each mesh in detail
+    if (meshes && Array.isArray(meshes)) {
+      meshes.forEach((mesh: any, index: number) => {
+        console.log(`Main: Mesh ${index}:`, {
+          type: typeof mesh,
+          keys: mesh ? Object.keys(mesh) : 'no keys',
+          name: mesh?.name,
+          numVert: mesh?.numVert,
+          numTri: mesh?.numTri,
+          hasVertProperties: mesh && 'vertProperties' in mesh,
+          hasTriVerts: mesh && 'triVerts' in mesh,
+          vertPropertiesLength: mesh?.vertProperties?.length,
+          triVertsLength: mesh?.triVerts?.length,
+          material: mesh?.material
         });
       });
     }
@@ -76,7 +73,7 @@ geometryWorker.onmessage = (e: MessageEvent) => {
 
     try {
       console.log('Main: Calling renderNodes()...');
-      renderNodes(nodes, scene, camera, controls, lockCamera, meshGroup);
+      renderNodes(meshes, scene, camera, controls, lockCamera, meshGroup);
       console.log('Main: ✓ Geometry rendered successfully');
       console.log('Main: Scene now has', scene.children.length, 'children');
       console.log('Main: MeshGroup now has', meshGroup.children.length, 'children');

@@ -2,54 +2,45 @@
 import * as THREE from 'three';
 
 /**
- * Convert GLTFNode mesh to Three.js geometry
+ * Convert mesh data to Three.js geometry
+ * This receives plain mesh data from the worker (not GLTFNode objects)
  */
-function gltfNodeToThreeGeometry(node: any): THREE.BufferGeometry {
-  console.log('GeometryConverter: Converting node to THREE.BufferGeometry');
-  console.log('GeometryConverter: Node structure:', {
-    hasNumVert: 'numVert' in node,
-    hasNumTri: 'numTri' in node,
-    hasGetVert: typeof node.getVert === 'function',
-    hasGetTri: typeof node.getTri === 'function',
-    numVert: node.numVert,
-    numTri: node.numTri
+function meshDataToThreeGeometry(meshData: any): THREE.BufferGeometry {
+  console.log('GeometryConverter: Converting mesh data to THREE.BufferGeometry');
+  console.log('GeometryConverter: Mesh data structure:', {
+    hasNumVert: 'numVert' in meshData,
+    hasNumTri: 'numTri' in meshData,
+    hasVertProperties: 'vertProperties' in meshData,
+    hasTriVerts: 'triVerts' in meshData,
+    numVert: meshData.numVert,
+    numTri: meshData.numTri,
+    vertPropertiesLength: meshData.vertProperties?.length,
+    triVertsLength: meshData.triVerts?.length
   });
   
   const geometry = new THREE.BufferGeometry();
   
   // Get mesh data
-  const numVert = node.numVert;
-  const numTri = node.numTri;
+  const numVert = meshData.numVert;
+  const numTri = meshData.numTri;
   
   if (!numVert || !numTri) {
-    console.error('GeometryConverter: ✗ Node missing vertex or triangle count!', { numVert, numTri });
-    throw new Error(`Invalid node: numVert=${numVert}, numTri=${numTri}`);
+    console.error('GeometryConverter: ✗ Mesh data missing vertex or triangle count!', { numVert, numTri });
+    throw new Error(`Invalid mesh data: numVert=${numVert}, numTri=${numTri}`);
   }
   
-  console.log(`GeometryConverter: Extracting ${numVert} vertices...`);
-  // Create Float32Array for positions (3 values per vertex)
-  const positions = new Float32Array(numVert * 3);
-  for (let i = 0; i < numVert; i++) {
-    const vert = node.getVert(i);
-    positions[i * 3] = vert[0];
-    positions[i * 3 + 1] = vert[1];
-    positions[i * 3 + 2] = vert[2];
-  }
-  console.log('GeometryConverter: ✓ Vertices extracted, sample:', {
+  console.log(`GeometryConverter: Converting ${numVert} vertices...`);
+  // vertProperties is a flat array: [x, y, z, x, y, z, ...]
+  const positions = new Float32Array(meshData.vertProperties);
+  console.log('GeometryConverter: ✓ Vertices converted, sample:', {
     first: [positions[0], positions[1], positions[2]],
     last: [positions[positions.length - 3], positions[positions.length - 2], positions[positions.length - 1]]
   });
   
-  console.log(`GeometryConverter: Extracting ${numTri} triangles...`);
-  // Create Uint32Array for indices
-  const indices = new Uint32Array(numTri * 3);
-  for (let i = 0; i < numTri; i++) {
-    const tri = node.getTri(i);
-    indices[i * 3] = tri[0];
-    indices[i * 3 + 1] = tri[1];
-    indices[i * 3 + 2] = tri[2];
-  }
-  console.log('GeometryConverter: ✓ Triangles extracted, sample:', {
+  console.log(`GeometryConverter: Converting ${numTri} triangles...`);
+  // triVerts is a flat array of vertex indices: [v0, v1, v2, v0, v1, v2, ...]
+  const indices = new Uint32Array(meshData.triVerts);
+  console.log('GeometryConverter: ✓ Triangles converted, sample:', {
     first: [indices[0], indices[1], indices[2]],
     last: [indices[indices.length - 3], indices[indices.length - 2], indices[indices.length - 1]]
   });
@@ -65,10 +56,10 @@ function gltfNodeToThreeGeometry(node: any): THREE.BufferGeometry {
 }
 
 /**
- * Create Three.js material from GLTFNode material properties
+ * Create Three.js material from mesh data material properties
  */
-function createMaterial(node: any): THREE.Material {
-  const materialProps = node.material || {};
+function createMaterial(meshData: any): THREE.Material {
+  const materialProps = meshData.material || {};
   const baseColor = materialProps.baseColorFactor || [0.8, 0.8, 0.8, 1.0];
   const roughness = materialProps.roughnessFactor !== undefined ? materialProps.roughnessFactor : 0.5;
   const metallic = materialProps.metallicFactor !== undefined ? materialProps.metallicFactor : 0.0;
@@ -80,28 +71,31 @@ function createMaterial(node: any): THREE.Material {
 }
 
 /**
- * Calculate bounding box for a GLTFNode
+ * Calculate bounding box for mesh data
  */
-function calculateBoundingBox(node: any): THREE.Box3 {
+function calculateBoundingBox(meshData: any): THREE.Box3 {
   const bbox = new THREE.Box3();
-  const numVert = node.numVert;
+  const positions = meshData.vertProperties;
+  const numVert = meshData.numVert;
   
   for (let i = 0; i < numVert; i++) {
-    const vert = node.getVert(i);
-    bbox.expandByPoint(new THREE.Vector3(vert[0], vert[1], vert[2]));
+    const x = positions[i * 3];
+    const y = positions[i * 3 + 1];
+    const z = positions[i * 3 + 2];
+    bbox.expandByPoint(new THREE.Vector3(x, y, z));
   }
   
   return bbox;
 }
 
 /**
- * Calculate combined bounding box for multiple nodes
+ * Calculate combined bounding box for multiple mesh data objects
  */
-export function calculateCombinedBoundingBox(nodes: any[]): THREE.Box3 {
+export function calculateCombinedBoundingBox(meshes: any[]): THREE.Box3 {
   const combinedBox = new THREE.Box3();
   
-  nodes.forEach(node => {
-    const bbox = calculateBoundingBox(node);
+  meshes.forEach(meshData => {
+    const bbox = calculateBoundingBox(meshData);
     combinedBox.union(bbox);
   });
   
