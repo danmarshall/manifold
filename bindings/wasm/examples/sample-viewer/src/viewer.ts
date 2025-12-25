@@ -5,10 +5,10 @@ import { SceneParams } from 'my-3d-app';
 import { setupScene, handleResize, animate } from './scene-setup';
 import { renderNodes } from './geometry-renderer';
 
-// Import worker from separate package
-// The worker package has restrictive TypeScript config to prevent DOM API usage
+// Import worker from worker subdirectory
+// Vite will bundle this as a separate worker file
 const geometryWorker = new Worker(
-  new URL('../sample-viewer-worker/src/geometry.worker.ts', import.meta.url),
+  new URL('./worker/geometry.worker.ts', import.meta.url),
   { type: 'module' }
 );
 
