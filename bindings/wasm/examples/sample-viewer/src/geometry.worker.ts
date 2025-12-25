@@ -1,13 +1,15 @@
 // Web Worker for generating geometry in background thread
 // This keeps the UI responsive during complex geometry generation
 import Module from 'manifold-3d';
-import { Manifold, GLTFNode } from 'manifold-3d/lib/manifoldCAD.js'
 
 import { createScene, SceneParams } from 'my-3d-app';
 
-// Strong typing - no 'any' types
-let ManifoldClass: (typeof Manifold) | null = null;
-let GLTFNodeClass = GLTFNode; // Will be extracted from Manifold.GLTFNode
+// Type imports for TypeScript - these are type-only, not runtime values
+import type { Manifold as ManifoldType } from 'manifold-3d/lib/manifoldCAD.js';
+
+// Runtime class references - will be extracted from WASM module
+let ManifoldClass: (typeof ManifoldType) | null = null;
+let GLTFNodeClass: any = null; // GLTFNode is accessed as Manifold.GLTFNode
 
 // Initialize WASM module once when worker starts
 async function initializeWASM() {
@@ -26,22 +28,23 @@ async function initializeWASM() {
       wasm.setup();
       console.log('Worker: Step 5 - setup() completed');
 
-      console.log('Worker: Step 6 - Extracting Manifold class');
-      ManifoldClass = wasm.Manifold;
-      console.log('Worker: Step 7 - Manifold extracted', {
+      console.log('Worker: Step 6 - Extracting Manifold and GLTFNode using destructuring (like three.ts)');
+      // Following the pattern from bindings/wasm/examples/three.ts lines 20-22
+      const { Manifold, GLTFNode } = wasm;
+      ManifoldClass = Manifold;
+      GLTFNodeClass = GLTFNode;
+      
+      console.log('Worker: Step 7 - Classes extracted', {
         hasManifold: !!ManifoldClass,
         ManifoldType: typeof ManifoldClass,
-        ManifoldKeys: ManifoldClass ? Object.keys(ManifoldClass).slice(0, 20) : []
-      });
-
-      console.log('Worker: Step 8 - Extracting GLTFNode from Manifold.GLTFNode');
-
-      console.log('Worker: Step 9 - GLTFNode extracted', {
+        hasCube: typeof ManifoldClass?.cube,
+        hasCylinder: typeof ManifoldClass?.cylinder,
+        hasSphere: typeof ManifoldClass?.sphere,
         hasGLTFNode: !!GLTFNodeClass,
         GLTFNodeType: typeof GLTFNodeClass
       });
 
-      console.log('Worker: Step 10 - WASM initialization complete!');
+      console.log('Worker: Step 8 - WASM initialization complete!');
     } catch (error) {
       console.error('Worker: FATAL ERROR during WASM initialization', error);
       console.error('Worker: Error details', {
