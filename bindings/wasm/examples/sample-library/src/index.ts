@@ -1,4 +1,4 @@
-import { Manifold } from 'manifold-3d/lib/manifoldCAD.js'
+import type { Manifold } from 'manifold-3d/lib/manifoldCAD.js'
 
 // Library that creates shapes using manifold-3d
 // The WASM module should be initialized once by the application and passed in

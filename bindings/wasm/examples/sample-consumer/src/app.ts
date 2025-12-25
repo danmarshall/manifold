@@ -1,4 +1,4 @@
-import { Manifold, GLTFNode } from 'manifold-3d/lib/manifoldCAD.js'
+import type { GLTFNode, Manifold } from 'manifold-3d/lib/manifoldCAD.js'
 
 // Application that consumes the my-manifold-shapes library
 import { createCubeWithHole } from 'my-manifold-shapes';
