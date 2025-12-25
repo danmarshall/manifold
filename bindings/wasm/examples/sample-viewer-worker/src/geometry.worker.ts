@@ -121,8 +121,8 @@ self.onmessage = async (e: MessageEvent) => {
       }
       
       // Import required modules for 3MF export
-      const { GLTFNodesToGLTFDoc } = await import('manifold-3d/lib/scene-builder.ts');
-      const { toArrayBuffer } = await import('manifold-3d/lib/export-model.ts');
+      const { GLTFNodesToGLTFDoc } = await import('manifold-3d/lib/scene-builder.js');
+      const { toArrayBuffer } = await import('manifold-3d/lib/export-3mf.js');
       
       // Reconstruct GLTFNodes from the data sent by main thread
       const gltfNodes = messageData.gltfNodes.map((nodeData: any) => {

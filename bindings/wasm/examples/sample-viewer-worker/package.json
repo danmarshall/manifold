@@ -9,7 +9,7 @@
     "dev": "tsc --watch"
   },
   "dependencies": {
-    "manifold-3d": "^2.5.1",
+    "manifold-3d": "^3.3.2",
     "my-3d-app": "file:../sample-consumer"
   },
   "devDependencies": {
