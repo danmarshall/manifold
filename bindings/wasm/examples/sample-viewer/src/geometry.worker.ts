@@ -2,7 +2,7 @@
 // This keeps the UI responsive during complex geometry generation
 import Module from 'manifold-3d';
 // GLTFNode is a higher-level class, not part of the base WASM module
-import { GLTFNode } from 'manifold-3d/manifoldCAD';
+import { GLTFNode } from 'manifold-3d/lib/manifoldCAD.js';
 
 import { createScene, SceneParams } from 'my-3d-app';
 
