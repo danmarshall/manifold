@@ -1,24 +1,26 @@
 // Web Worker for generating geometry in background thread
 // This keeps the UI responsive during complex geometry generation
 import Module from 'manifold-3d';
-import { Manifold, GLTFNode } from 'manifold-3d/lib/manifoldCAD';
 import { createScene, SceneParams } from 'my-3d-app';
 
-let ManifoldClass: typeof Manifold | null = null;
-let GLTFNodeClass: typeof GLTFNode | null = null;
+let ManifoldClass: any = null;
+let GLTFNodeClass: any = null;
 
 // Initialize WASM module once when worker starts
 async function initializeWASM() {
   if (!ManifoldClass) {
     console.log('Worker: Initializing WASM module');
     const wasm = await Module();
+    console.log('Worker: Module loaded, calling setup()');
     wasm.setup();
+    console.log('Worker: Setup complete, extracting classes');
     ManifoldClass = wasm.Manifold;
-    // GLTFNode is a property on the Manifold class, not the wasm module
-    GLTFNodeClass = GLTFNode;
+    // GLTFNode is a property on the Manifold class
+    GLTFNodeClass = ManifoldClass.GLTFNode;
     console.log('Worker: WASM initialized', { 
       hasManifold: !!ManifoldClass, 
-      hasGLTFNode: !!GLTFNodeClass 
+      hasGLTFNode: !!GLTFNodeClass,
+      manifestMethods: ManifoldClass ? Object.keys(ManifoldClass).slice(0, 10) : []
     });
   }
 }
