@@ -12,6 +12,7 @@ const edgeLengthSlider = document.getElementById('sphereCount') as HTMLInputElem
 const radiusValue = document.getElementById('radiusValue') as HTMLSpanElement;
 const edgeLengthValue = document.getElementById('sphereValue') as HTMLSpanElement;
 const lockCameraCheckbox = document.getElementById('lockCamera') as HTMLInputElement;
+const download3mfButton = document.getElementById('download3mf') as HTMLButtonElement;
 const status = document.getElementById('status') as HTMLDivElement;
 
 // localStorage key for camera lock preference
@@ -34,6 +35,9 @@ scene.add(meshGroup);
 let workerReady = false;
 let pendingUpdate = false;
 let currentRequestId = 0;
+
+// Store current GLTFNodes for export
+let currentGLTFNodes: any[] = [];
 
 // Debounce timer for slider input
 let debounceTimer: number | undefined;
@@ -66,6 +70,9 @@ geometryWorker.onmessage = (e: MessageEvent) => {
 
     const meshes = e.data.meshes;
     const lockCamera = lockCameraCheckbox.checked;
+    
+    // Store GLTFNodes for export
+    currentGLTFNodes = e.data.gltfNodes || [];
 
     try {
       renderNodes(meshes, scene, camera, controls, lockCamera, meshGroup);
@@ -75,6 +82,25 @@ geometryWorker.onmessage = (e: MessageEvent) => {
       status.textContent = `Rendering error: ${error}`;
       status.style.color = '#f44336';
     }
+  } else if (e.data.type === '3mf') {
+    // Handle 3MF export result
+    try {
+      const blob = new Blob([e.data.buffer], { type: 'model/3mf' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = 'model.3mf';
+      link.click();
+      URL.revokeObjectURL(url);
+      
+      status.textContent = '3MF downloaded successfully';
+      status.style.color = '#4CAF50';
+    } catch (error) {
+      status.textContent = `Download error: ${error}`;
+      status.style.color = '#f44336';
+    }
+    download3mfButton.disabled = false;
+    download3mfButton.textContent = 'Download 3MF';
   } else if (e.data.type === 'error') {
     // Only show error if it's from the current request
     if (e.data.requestId === currentRequestId) {
@@ -162,6 +188,33 @@ lockCameraCheckbox.addEventListener('change', () => {
   // If unchecking, immediately reposition camera to current model
   if (!lockCameraCheckbox.checked) {
     updateScene();
+  }
+});
+
+// Handle 3MF download button
+download3mfButton.addEventListener('click', async () => {
+  if (currentGLTFNodes.length === 0) {
+    status.textContent = 'No model to export';
+    status.style.color = '#f44336';
+    return;
+  }
+  
+  download3mfButton.disabled = true;
+  download3mfButton.textContent = 'Exporting...';
+  status.textContent = 'Generating 3MF file...';
+  status.style.color = '#2196F3';
+  
+  try {
+    // Request 3MF export from worker
+    geometryWorker.postMessage({
+      type: 'export3mf',
+      gltfNodes: currentGLTFNodes
+    });
+  } catch (error) {
+    status.textContent = `Export error: ${error}`;
+    status.style.color = '#f44336';
+    download3mfButton.disabled = false;
+    download3mfButton.textContent = 'Download 3MF';
   }
 });
 

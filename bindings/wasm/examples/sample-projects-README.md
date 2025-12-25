@@ -771,6 +771,63 @@ radiusScaleSlider.addEventListener('input', () => {
 
 Together, these ensure the viewer remains responsive even with complex models or rapid parameter changes.
 
+### How Vite Handles Web Workers
+
+Vite natively supports Web Workers without special configuration. Here's how it works:
+
+**Worker creation pattern:**
+```typescript
+// In viewer.ts
+const geometryWorker = new Worker(
+  new URL('./geometry.worker.ts', import.meta.url),
+  { type: 'module' }
+);
+```
+
+**What Vite does automatically:**
+
+1. **Detects the worker pattern**: Recognizes `new Worker(new URL(..., import.meta.url))`
+2. **Creates separate bundle**: Builds `geometry.worker.ts` into its own JavaScript bundle
+3. **Resolves imports**: Worker can import modules like `manifold-3d` normally
+4. **Asset handling**: WASM files are treated as assets and copied to output directory
+5. **Hot Module Replacement**: Worker updates during development without full page reload
+
+**Configuration in vite.config.ts:**
+```typescript
+export default defineConfig({
+  // Worker bundling happens automatically, but we optimize WASM loading:
+  optimizeDeps: {
+    exclude: ['manifold-3d'],  // Don't pre-bundle - let worker load directly
+  },
+  assetsInclude: ['**/*.wasm'],  // Treat .wasm files as static assets
+});
+```
+
+**Build output structure:**
+```
+dist/
+  ├── index.html
+  ├── assets/
+  │   ├── index-[hash].js          # Main thread bundle
+  │   ├── geometry.worker-[hash].js # Worker thread bundle (separate!)
+  │   └── manifold-[hash].wasm      # WASM binary
+  └── ...
+```
+
+**Key points:**
+- Worker code is **completely separate** from main thread bundle
+- Imports in worker are resolved at bundle time (compile-time)
+- Worker and main thread can share the same WASM file (loaded once per thread)
+- No webpack config needed - Vite handles everything automatically
+- Dynamic imports in worker (`await import(...)`) are code-split into separate chunks
+
+**Why this architecture works well:**
+- ✅ **Type safety**: Worker code is TypeScript, type-checked at compile time
+- ✅ **Code splitting**: Vite automatically splits worker into separate bundle
+- ✅ **Development**: HMR works with workers for fast iteration
+- ✅ **Production**: Optimized bundles with proper chunking
+- ✅ **Module resolution**: Import paths work the same in worker and main thread
+
 ## More Examples
 
 For more examples of using manifold-3d, see:
