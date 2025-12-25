@@ -12,7 +12,7 @@ const GLTFNodeClass = GLTFNode;
 export async function export3MF(gltfNodesData: any[]): Promise<ArrayBuffer> {
   // Import required modules for 3MF export
   const { GLTFNodesToGLTFDoc } = await import('manifold-3d/lib/scene-builder.js');
-  const { toArrayBuffer } = await import('manifold-3d/lib/export-model.js');
+  const { toArrayBuffer } = await import('manifold-3d/lib/export-3mf.js');
   
   // Reconstruct GLTFNodes from the serialized data
   const gltfNodes = gltfNodesData.map((nodeData: any) => {
@@ -20,7 +20,7 @@ export async function export3MF(gltfNodesData: any[]): Promise<ArrayBuffer> {
     node.name = nodeData.name;
     node.manifold = nodeData.manifold;
     node.material = nodeData.material;
-    node.transform = nodeData.transform;
+    // Note: transform property is not available on GLTFNode
     return node;
   });
   
