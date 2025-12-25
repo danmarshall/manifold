@@ -40,7 +40,18 @@ async function initializeWASM() {
 initializeWASM();
 
 // Handle messages from main thread
-self.onmessage = async (e: MessageEvent<SceneParams>) => {
+self.onmessage = async (e: MessageEvent) => {
+  // Handle different message types
+  const messageData = e.data;
+  
+  // Only process 'generate' messages
+  if (messageData.type !== 'generate') {
+    return;
+  }
+
+  const requestId = messageData.requestId;
+  const params: SceneParams = messageData.params;
+
   try {
     // Wait for WASM to be initialized (should already be done by now)
     if (!ManifoldClass) {
@@ -48,7 +59,6 @@ self.onmessage = async (e: MessageEvent<SceneParams>) => {
     }
 
     // Generate geometry
-    const params = e.data;
     const sceneResult = createScene(ManifoldClass!, GLTFNodeClass!, params);
 
     // Ensure we always return an array
@@ -86,11 +96,16 @@ self.onmessage = async (e: MessageEvent<SceneParams>) => {
       }
     });
 
-    // Send mesh data back to main thread
-    self.postMessage({ type: 'geometry', meshes: meshDataArray });
+    // Send mesh data back to main thread with request ID
+    self.postMessage({ 
+      type: 'geometry', 
+      requestId,
+      meshes: meshDataArray 
+    });
   } catch (error) {
     self.postMessage({
       type: 'error',
+      requestId,
       message: error instanceof Error ? error.message : String(error)
     });
   }

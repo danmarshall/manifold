@@ -30,9 +30,14 @@ const { scene, camera, renderer, controls } = setupScene(canvas);
 const meshGroup = new THREE.Group();
 scene.add(meshGroup);
 
-// Track worker ready state
+// Track worker ready state and request IDs for cancellation
 let workerReady = false;
 let pendingUpdate = false;
+let currentRequestId = 0;
+
+// Debounce timer for slider input
+let debounceTimer: number | undefined;
+const DEBOUNCE_MS = 150; // Wait 150ms after last input before generating geometry
 
 // Initialize Web Worker for geometry generation
 const geometryWorker = new Worker(
@@ -53,6 +58,12 @@ geometryWorker.onmessage = (e: MessageEvent) => {
       updateScene();
     }
   } else if (e.data.type === 'geometry') {
+    // Check if this is the most recent request (discard outdated results)
+    if (e.data.requestId !== currentRequestId) {
+      // Outdated result - ignore it
+      return;
+    }
+
     const meshes = e.data.meshes;
     const lockCamera = lockCameraCheckbox.checked;
 
@@ -65,8 +76,11 @@ geometryWorker.onmessage = (e: MessageEvent) => {
       status.style.color = '#f44336';
     }
   } else if (e.data.type === 'error') {
-    status.textContent = `Error: ${e.data.message}`;
-    status.style.color = '#f44336';
+    // Only show error if it's from the current request
+    if (e.data.requestId === currentRequestId) {
+      status.textContent = `Error: ${e.data.message}`;
+      status.style.color = '#f44336';
+    }
   }
 };
 
@@ -84,7 +98,7 @@ geometryWorker.onmessageerror = (error) => {
 
 /**
  * Update scene with new parameters
- * Sends parameters to worker for geometry generation
+ * Sends parameters to worker for geometry generation with unique request ID
  */
 function updateScene() {
   // Check if worker is ready
@@ -95,6 +109,9 @@ function updateScene() {
     return;
   }
 
+  // Generate unique request ID for this update
+  const requestId = ++currentRequestId;
+
   const params: SceneParams = {
     libraryRadiusScale: parseFloat(radiusScaleSlider.value),
     edgeLength: parseFloat(edgeLengthSlider.value),
@@ -103,24 +120,38 @@ function updateScene() {
   status.textContent = 'Generating geometry...';
   status.style.color = '#2196F3';
 
-  // Send parameters to worker
+  // Send parameters to worker with request ID
   try {
-    geometryWorker.postMessage(params);
+    geometryWorker.postMessage({ 
+      type: 'generate',
+      requestId,
+      params 
+    });
   } catch (error) {
     status.textContent = `Error: ${error}`;
     status.style.color = '#f44336';
   }
 }
 
-// Update display values and regenerate on slider change
+/**
+ * Debounced scene update - waits for user to stop adjusting sliders
+ */
+function debouncedUpdateScene() {
+  clearTimeout(debounceTimer);
+  debounceTimer = setTimeout(() => {
+    updateScene();
+  }, DEBOUNCE_MS);
+}
+
+// Update display values and regenerate on slider change (debounced)
 radiusScaleSlider.addEventListener('input', () => {
   radiusValue.textContent = radiusScaleSlider.value;
-  updateScene();
+  debouncedUpdateScene();
 });
 
 edgeLengthSlider.addEventListener('input', () => {
   edgeLengthValue.textContent = edgeLengthSlider.value;
-  updateScene();
+  debouncedUpdateScene();
 });
 
 // Handle camera lock checkbox

@@ -648,6 +648,129 @@ This gives you the **best of both worlds**:
 - ✅ Full control over optimization
 - ✅ Works with complex dependency graphs
 
+## Architecture: WASM Instance and Web Worker
+
+### Single WASM Instance Per Worker
+
+The sample-viewer uses a **single WASM instance** that is initialized once when the Web Worker starts:
+
+```typescript
+// In geometry.worker.ts
+let ManifoldClass = null;
+
+async function initializeWASM() {
+  if (!ManifoldClass) {
+    const wasm = await Module();  // Load WASM binary
+    wasm.setup();                  // Initialize C++ runtime
+    const { Manifold } = wasm;     // Extract Manifold class
+    ManifoldClass = Manifold;      // Cache for reuse
+  }
+}
+
+// Initialize once when worker loads
+initializeWASM();
+```
+
+**Benefits:**
+- ✅ **Memory efficient**: Single WASM heap shared across all operations
+- ✅ **Fast**: No re-initialization overhead
+- ✅ **Persistent**: WASM module stays loaded between parameter changes
+- ✅ **Isolated**: Worker runs in separate thread from UI
+
+### Single Web Worker
+
+The viewer creates **one Web Worker** that handles all geometry generation:
+
+```typescript
+// In viewer.ts - created once at startup
+const geometryWorker = new Worker(
+  new URL('./geometry.worker.ts', import.meta.url),
+  { type: 'module' }
+);
+```
+
+**Why a single worker?**
+- ✅ **Stateful**: Can cache WASM instance across requests
+- ✅ **Serialized**: Requests processed in order
+- ✅ **Simpler**: No worker pool management needed
+- ⚠️ **Sequential**: Only one geometry generation at a time
+
+**Message flow:**
+```
+Main Thread                    Worker Thread
+-----------                    -------------
+slider changes     →           
+postMessage(params)  →          receive params
+                                initialize WASM (first time only)
+                                createScene(params)
+                                extract mesh data
+                   ←            postMessage(meshes)
+receive meshes
+render to scene
+```
+
+### Request Cancellation
+
+For optimal performance when users adjust sliders rapidly, the viewer implements **request ID tracking** to discard outdated results:
+
+```typescript
+let currentRequestId = 0;
+
+function updateScene() {
+  const requestId = ++currentRequestId;  // Generate unique ID
+  
+  geometryWorker.postMessage({
+    requestId,
+    params: { radiusScale, edgeLength }
+  });
+}
+
+geometryWorker.onmessage = (e) => {
+  // Only process if this is the most recent request
+  if (e.data.requestId === currentRequestId) {
+    renderNodes(e.data.meshes, scene, camera, ...);
+  }
+  // Outdated results are silently discarded
+};
+```
+
+**Why this matters:**
+- User drags slider quickly: generates requests 1, 2, 3, 4, 5
+- Worker processes them in order: 1 → 2 → 3 → 4 → 5
+- Results arrive: 1, 2, 3, 4, 5 (may be out of order if timing varies)
+- Only result 5 is rendered; 1-4 are discarded
+- Prevents flickering and ensures final state matches current parameters
+
+### Input Debouncing
+
+The viewer debounces slider input to reduce the number of geometry generation requests:
+
+```typescript
+let debounceTimer;
+const DEBOUNCE_MS = 150;  // Wait 150ms after last input
+
+radiusScaleSlider.addEventListener('input', () => {
+  radiusValue.textContent = radiusScaleSlider.value;  // Update display immediately
+  
+  clearTimeout(debounceTimer);
+  debounceTimer = setTimeout(() => {
+    updateScene();  // Generate geometry only after user stops moving
+  }, DEBOUNCE_MS);
+});
+```
+
+**Benefits:**
+- ✅ **Responsive UI**: Display value updates instantly
+- ✅ **Fewer requests**: Only generates geometry when user pauses
+- ✅ **Better UX**: Smooth slider movement without stuttering
+- ✅ **Efficient**: Reduces wasted computation
+
+**Two-level optimization:**
+1. **Debouncing**: Reduces number of requests sent
+2. **Request cancellation**: Discards stale results if multiple requests were sent
+
+Together, these ensure the viewer remains responsive even with complex models or rapid parameter changes.
+
 ## More Examples
 
 For more examples of using manifold-3d, see:
