@@ -1,31 +1,31 @@
 // Web Worker for generating geometry in background thread
 // This keeps the UI responsive during complex geometry generation
 import Module from 'manifold-3d';
-import type { Manifold } from 'manifold-3d/lib/manifoldCAD.js'
+import { Manifold, GLTFNode } from 'manifold-3d/lib/manifoldCAD.js'
 
 import { createScene, SceneParams } from 'my-3d-app';
 
 // Strong typing - no 'any' types
 let ManifoldClass: (typeof Manifold) | null = null;
-let GLTFNodeClass: any = null; // Will be extracted from Manifold.GLTFNode
+let GLTFNodeClass = GLTFNode; // Will be extracted from Manifold.GLTFNode
 
 // Initialize WASM module once when worker starts
 async function initializeWASM() {
   if (!ManifoldClass) {
     console.log('Worker: Step 1 - Starting WASM initialization');
     console.log('Worker: Step 2 - Calling Module()');
-    
+
     try {
       const wasm = await Module();
       console.log('Worker: Step 3 - Module() returned successfully', {
         wasmType: typeof wasm,
         wasmKeys: Object.keys(wasm).slice(0, 20)
       });
-      
+
       console.log('Worker: Step 4 - Calling wasm.setup()');
       wasm.setup();
       console.log('Worker: Step 5 - setup() completed');
-      
+
       console.log('Worker: Step 6 - Extracting Manifold class');
       ManifoldClass = wasm.Manifold;
       console.log('Worker: Step 7 - Manifold extracted', {
@@ -33,14 +33,14 @@ async function initializeWASM() {
         ManifoldType: typeof ManifoldClass,
         ManifoldKeys: ManifoldClass ? Object.keys(ManifoldClass).slice(0, 20) : []
       });
-      
+
       console.log('Worker: Step 8 - Extracting GLTFNode from Manifold.GLTFNode');
-      GLTFNodeClass = ManifoldClass.GLTFNode;
+
       console.log('Worker: Step 9 - GLTFNode extracted', {
         hasGLTFNode: !!GLTFNodeClass,
         GLTFNodeType: typeof GLTFNodeClass
       });
-      
+
       console.log('Worker: Step 10 - WASM initialization complete!');
     } catch (error) {
       console.error('Worker: FATAL ERROR during WASM initialization', error);
@@ -95,9 +95,7 @@ self.onmessage = async (e: MessageEvent<SceneParams>) => {
       nodeTypes: nodes.map(n => typeof n),
       firstNodeSample: nodes[0] ? {
         hasNumVert: 'numVert' in nodes[0],
-        hasNumTri: 'numTri' in nodes[0],
-        numVert: nodes[0].numVert,
-        numTri: nodes[0].numTri
+        hasNumTri: 'numTri' in nodes[0]
       } : 'no first node'
     });
 
