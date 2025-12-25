@@ -1,7 +1,7 @@
 // Web Worker for generating geometry in background thread
 // This keeps the UI responsive during complex geometry generation
-import Module from 'manifold-3d';
-// GLTFNode is a higher-level class, not part of the base WASM module
+// Following the pattern from three.ts which uses 'built/manifold'
+import Module from 'manifold-3d/lib/manifoldCAD.js';
 import { GLTFNode } from 'manifold-3d/lib/manifoldCAD.js';
 
 import { createScene, SceneParams } from 'my-3d-app';
