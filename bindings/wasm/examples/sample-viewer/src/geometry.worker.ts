@@ -1,10 +1,20 @@
 // Web Worker for generating geometry in background thread
 // This keeps the UI responsive during complex geometry generation
-// Using manifold-3d/lib/manifoldCAD.js which includes both Module and GLTFNode
-import Module from 'manifold-3d/lib/manifoldCAD.js';
-import { GLTFNode } from 'manifold-3d/lib/manifoldCAD.js';
+console.log('Worker: ========== WORKER SCRIPT EXECUTING ==========');
+console.log('Worker: Top-level code running');
 
+// Using manifold-3d/lib/manifoldCAD.js which includes both Module and GLTFNode
+console.log('Worker: About to import Module from manifold-3d/lib/manifoldCAD.js...');
+import Module from 'manifold-3d/lib/manifoldCAD.js';
+console.log('Worker: ✓ Module imported successfully');
+
+console.log('Worker: About to import GLTFNode...');
+import { GLTFNode } from 'manifold-3d/lib/manifoldCAD.js';
+console.log('Worker: ✓ GLTFNode imported successfully');
+
+console.log('Worker: About to import createScene from my-3d-app...');
 import { createScene, SceneParams } from 'my-3d-app';
+console.log('Worker: ✓ createScene imported successfully');
 
 // Type imports for TypeScript - these are type-only, not runtime values
 import type { Manifold as ManifoldType } from 'manifold-3d/lib/manifoldCAD.js';
@@ -12,6 +22,10 @@ import type { Manifold as ManifoldType } from 'manifold-3d/lib/manifoldCAD.js';
 // Runtime class references - will be extracted from WASM module
 let ManifoldClass: (typeof ManifoldType) | null = null;
 const GLTFNodeClass = GLTFNode; // GLTFNode is imported from manifoldCAD, not from wasm
+
+console.log('Worker: All imports complete');
+console.log('Worker: GLTFNodeClass type:', typeof GLTFNodeClass);
+console.log('Worker: Module type:', typeof Module);
 
 // Initialize WASM module once when worker starts
 async function initializeWASM() {
