@@ -832,21 +832,28 @@ dist/
 
 To prevent accidental misuse of DOM APIs in the worker thread, the sample-viewer uses a **separate package** for worker code with restrictive TypeScript configuration.
 
-**Project structure:**
+**Project structure (sibling packages):**
 ```
-sample-viewer/
-  ├── src/                         # UI thread code
-  │   ├── viewer.ts                # Main application (uses DOM APIs)
-  │   ├── scene-setup.ts           # Three.js setup
-  │   └── geometry-renderer.ts     # Mesh rendering
-  ├── tsconfig.json                # lib: ["ES2020", "DOM"]
-  └── sample-viewer-worker/        # Separate worker package
+bindings/wasm/examples/
+  ├── sample-viewer/               # Main viewer (UI thread)
+  │   ├── src/
+  │   │   ├── viewer.ts            # Main application (uses DOM APIs)
+  │   │   ├── scene-setup.ts       # Three.js setup
+  │   │   └── geometry-renderer.ts # Mesh rendering
+  │   ├── tsconfig.json            # lib: ["ES2020", "DOM"]
+  │   └── package.json
+  └── sample-viewer-worker/        # Worker package (Worker thread)
       ├── src/
       │   └── geometry.worker.ts   # Worker thread code
       ├── tsconfig.json            # lib: ["ES2020", "WebWorker"] - NO DOM!
       ├── package.json
       └── README.md
 ```
+
+**Note:** The worker is a **sibling** of the viewer, not nested inside it. This structure:
+- Fixes node_modules resolution issues that occur with nested packages
+- Makes the separation between UI and Worker threads more obvious
+- Allows each package to maintain independent dependencies
 
 **Main viewer tsconfig.json:**
 ```json
@@ -910,23 +917,29 @@ Web Workers run in a **completely separate JavaScript context**:
 **Development workflow:**
 
 ```bash
-# Build worker package first
+# Build worker package first (sibling of viewer)
 cd sample-viewer-worker
 npm install
 npm run build
 
-# Then run main viewer
-cd ..
+# Then run main viewer (sibling of worker)
+cd ../sample-viewer
 npm run dev
 ```
 
-The main viewer imports the worker as:
+The main viewer imports the worker from sibling path:
 ```typescript
 const geometryWorker = new Worker(
   new URL('../sample-viewer-worker/src/geometry.worker.ts', import.meta.url),
   { type: 'module' }
 );
 ```
+
+**Why sibling packages (not nested)?**
+- ✅ Avoids node_modules resolution issues
+- ✅ Each package has independent dependency tree
+- ✅ Clearer separation of concerns
+- ✅ Standard monorepo pattern
 
 **Alternative approach (not recommended):**
 You could keep everything in one package and just use different TypeScript lib settings, but:
