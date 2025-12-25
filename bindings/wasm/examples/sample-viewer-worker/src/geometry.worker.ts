@@ -1,47 +1,28 @@
 // Web Worker for generating geometry in background thread
 // This keeps the UI responsive during complex geometry generation
-import Module from 'manifold-3d';
-import { GLTFNode } from 'manifold-3d/lib/manifoldCAD.js';
-import { createScene, SceneParams } from 'my-3d-app';
+//
+// This worker orchestrates modular components for WASM initialization,
+// geometry generation, mesh serialization, and 3MF export
 
-// Type imports for TypeScript - these are type-only, not runtime values
-import type { Manifold as ManifoldType } from 'manifold-3d/lib/manifoldCAD.js';
+import { SceneParams } from 'my-3d-app';
+import { initializeWASM, getManifoldClass } from './wasm-init.js';
+import { generateGeometry } from './geometry-generator.js';
+import { serializeMeshData } from './mesh-serializer.js';
+import { export3MF } from './export-handler.js';
 
-// Runtime class references - will be extracted from WASM module
-let ManifoldClass: (typeof ManifoldType) | null = null;
-const GLTFNodeClass = GLTFNode; // GLTFNode is imported from manifoldCAD, not from wasm
-
-// Initialize WASM module once when worker starts
-async function initializeWASM() {
-  if (!ManifoldClass) {
-
-    try {
-      const wasm = await Module();
-      wasm.setup();
-
-      // Following the pattern from bindings/wasm/examples/three.ts line 22
-      // Note: GLTFNode is NOT in wasm, it's imported from manifoldCAD module
-      const { Manifold } = wasm;
-      ManifoldClass = Manifold;
-
-      // Send ready message to main thread
-      self.postMessage({ type: 'ready' });
-    } catch (error) {
-      self.postMessage({
-        type: 'error',
-        message: `WASM initialization failed: ${error instanceof Error ? error.message : String(error)}`
-      });
-      throw error;
-    }
-  }
-}
-
-// Start initialization immediately when worker loads
-initializeWASM();
+// Start WASM initialization immediately when worker loads
+initializeWASM().then(() => {
+  // Send ready message to main thread
+  self.postMessage({ type: 'ready' });
+}).catch((error) => {
+  self.postMessage({
+    type: 'error',
+    message: `WASM initialization failed: ${error instanceof Error ? error.message : String(error)}`
+  });
+});
 
 // Handle messages from main thread
 self.onmessage = async (e: MessageEvent) => {
-  // Handle different message types
   const messageData = e.data;
   
   if (messageData.type === 'generate') {
@@ -49,48 +30,17 @@ self.onmessage = async (e: MessageEvent) => {
     const params: SceneParams = messageData.params;
 
     try {
-      // Wait for WASM to be initialized (should already be done by now)
+      // Ensure WASM is initialized
+      let ManifoldClass = getManifoldClass();
       if (!ManifoldClass) {
-        await initializeWASM();
+        ManifoldClass = await initializeWASM();
       }
 
-      // Generate geometry
-      const sceneResult = createScene(ManifoldClass!, GLTFNodeClass!, params);
+      // Generate geometry using modular component
+      const nodes = generateGeometry(ManifoldClass, params);
 
-      // Ensure we always return an array
-      const nodes = Array.isArray(sceneResult) ? sceneResult : [sceneResult];
-
-      // Extract mesh data
-      const meshDataArray: any[] = [];
-
-      nodes.forEach((node, index) => {
-        // Extract mesh data from the GLTFNode's manifold
-        // GLTFNode objects contain WASM references that can't be sent through postMessage
-        // So we need to extract the raw mesh data here in the worker
-        if (node.manifold && typeof node.manifold.getMesh === 'function') {
-          try {
-            const mesh = node.manifold.getMesh();
-
-            // Convert to plain object that can be sent through postMessage
-            const meshData = {
-              name: node.name,
-              material: node.material,
-              // Copy the mesh data arrays
-              numVert: mesh.numVert,
-              numTri: mesh.numTri,
-              vertProperties: Array.from(mesh.vertProperties), // Float32Array to regular array
-              triVerts: Array.from(mesh.triVerts), // Uint32Array to regular array
-              numProp: mesh.numProp
-            };
-
-            meshDataArray.push(meshData);
-          } catch (err) {
-            throw err;
-          }
-        } else {
-          throw new Error(`Node ${index} (${node.name}) has no valid manifold object`);
-        }
-      });
+      // Serialize mesh data for postMessage transfer
+      const meshDataArray = serializeMeshData(nodes);
 
       // Send mesh data back to main thread with request ID
       // Also send the original GLTFNodes (as plain objects) for export
@@ -115,30 +65,14 @@ self.onmessage = async (e: MessageEvent) => {
   } else if (messageData.type === 'export3mf') {
     // Handle 3MF export request
     try {
-      // Wait for WASM to be initialized
+      // Ensure WASM is initialized
+      let ManifoldClass = getManifoldClass();
       if (!ManifoldClass) {
-        await initializeWASM();
+        ManifoldClass = await initializeWASM();
       }
       
-      // Import required modules for 3MF export
-      const { GLTFNodesToGLTFDoc } = await import('manifold-3d/lib/scene-builder.js');
-      const { toArrayBuffer } = await import('manifold-3d/lib/export-3mf.js');
-      
-      // Reconstruct GLTFNodes from the data sent by main thread
-      const gltfNodes = messageData.gltfNodes.map((nodeData: any) => {
-        const node = new GLTFNodeClass!();
-        node.name = nodeData.name;
-        node.manifold = nodeData.manifold;
-        node.material = nodeData.material;
-        node.transform = nodeData.transform;
-        return node;
-      });
-      
-      // Convert GLTFNodes to GLTF Document
-      const doc = await GLTFNodesToGLTFDoc(gltfNodes);
-      
-      // Export to 3MF ArrayBuffer
-      const buffer = await toArrayBuffer(doc, '3mf');
+      // Use modular export handler
+      const buffer = await export3MF(messageData.gltfNodes);
       
       // Send back the 3MF file
       self.postMessage({
