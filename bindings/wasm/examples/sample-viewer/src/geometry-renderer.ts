@@ -162,7 +162,7 @@ export function renderNodes(
       hasMaterial: !!node.material
     });
     
-    const geometry = gltfNodeToThreeGeometry(node);
+    const geometry = meshDataToThreeGeometry(node);
     console.log(`Renderer: Created geometry for node ${index}`, {
       positionCount: geometry.attributes.position.count,
       indexCount: geometry.index?.count
