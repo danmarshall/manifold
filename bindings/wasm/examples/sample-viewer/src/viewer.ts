@@ -20,6 +20,7 @@ const radiusValue = document.getElementById('radiusValue') as HTMLSpanElement;
 const edgeLengthValue = document.getElementById('sphereValue') as HTMLSpanElement;
 const lockCameraCheckbox = document.getElementById('lockCamera') as HTMLInputElement;
 const download3mfButton = document.getElementById('download3mf') as HTMLButtonElement;
+const downloadGlbButton = document.getElementById('downloadglb') as HTMLButtonElement;
 const status = document.getElementById('status') as HTMLDivElement;
 
 // localStorage key for camera lock preference
@@ -102,6 +103,25 @@ geometryWorker.onmessage = (e: MessageEvent) => {
     }
     download3mfButton.disabled = false;
     download3mfButton.textContent = 'Download 3MF';
+  } else if (e.data.type === 'glb') {
+    // Handle GLB export result
+    try {
+      const blob = new Blob([e.data.buffer], { type: 'model/gltf-binary' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = 'model.glb';
+      link.click();
+      URL.revokeObjectURL(url);
+      
+      status.textContent = 'GLB downloaded successfully';
+      status.style.color = '#4CAF50';
+    } catch (error) {
+      status.textContent = `Download error: ${error}`;
+      status.style.color = '#f44336';
+    }
+    downloadGlbButton.disabled = false;
+    downloadGlbButton.textContent = 'Download GLB';
   } else if (e.data.type === 'error') {
     // Only show error if it's from the current request
     if (e.data.requestId === currentRequestId) {
@@ -216,6 +236,33 @@ download3mfButton.addEventListener('click', async () => {
     status.style.color = '#f44336';
     download3mfButton.disabled = false;
     download3mfButton.textContent = 'Download 3MF';
+  }
+});
+
+// Handle GLB download button
+downloadGlbButton.addEventListener('click', async () => {
+  if (currentGLTFNodes.length === 0) {
+    status.textContent = 'No model to export';
+    status.style.color = '#f44336';
+    return;
+  }
+  
+  downloadGlbButton.disabled = true;
+  downloadGlbButton.textContent = 'Exporting...';
+  status.textContent = 'Generating GLB file...';
+  status.style.color = '#2196F3';
+  
+  try {
+    // Request GLB export from worker
+    geometryWorker.postMessage({
+      type: 'exportglb',
+      gltfNodes: currentGLTFNodes
+    });
+  } catch (error) {
+    status.textContent = `Export error: ${error}`;
+    status.style.color = '#f44336';
+    downloadGlbButton.disabled = false;
+    downloadGlbButton.textContent = 'Download GLB';
   }
 });
 
