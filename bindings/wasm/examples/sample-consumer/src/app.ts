@@ -1,3 +1,5 @@
+import { Manifold, GLTFNode } from 'manifold-3d/lib/manifoldCAD.js'
+
 // Application that consumes the my-manifold-shapes library
 import { createCubeWithHole } from 'my-manifold-shapes';
 
@@ -23,7 +25,7 @@ export interface SceneParams {
  * @returns A Manifold object representing the rounded frame
  */
 function roundedFrame(
-  ManifoldClass: any, // Type is passed at runtime from worker
+  ManifoldClass: typeof Manifold,
   edgeLength: number,
   radius: number,
   circularSegments: number = 0
@@ -58,8 +60,8 @@ function roundedFrame(
  * @returns An array of GLTFNodes with materials for color support
  */
 export function createScene(
-  ManifoldClass: any, // Type is passed at runtime from worker
-  GLTFNodeClass: any, // Type is passed at runtime from worker
+  ManifoldClass: typeof Manifold,
+  GLTFNodeClass: typeof GLTFNode,
   params: SceneParams = {}
 ) {
   const {
