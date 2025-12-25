@@ -5,7 +5,7 @@ console.log('Worker: Top-level code running');
 
 // Using manifold-3d/lib/manifoldCAD.js which includes both Module and GLTFNode
 console.log('Worker: About to import Module from manifold-3d/lib/manifoldCAD.js...');
-import Module from 'manifold-3d/lib/manifoldCAD.js';
+import Module from 'manifold-3d';
 console.log('Worker: ✓ Module imported successfully');
 
 console.log('Worker: About to import GLTFNode...');
@@ -49,7 +49,7 @@ async function initializeWASM() {
       // Note: GLTFNode is NOT in wasm, it's imported from manifoldCAD module
       const { Manifold } = wasm;
       ManifoldClass = Manifold;
-      
+
       console.log('Worker: Step 7 - Classes extracted', {
         hasManifold: !!ManifoldClass,
         ManifoldType: typeof ManifoldClass,
@@ -61,7 +61,7 @@ async function initializeWASM() {
       });
 
       console.log('Worker: Step 8 - WASM initialization complete!');
-      
+
       // Send ready message to main thread
       console.log('Worker: Sending ready message to main thread');
       self.postMessage({ type: 'ready' });
@@ -128,10 +128,10 @@ self.onmessage = async (e: MessageEvent<SceneParams>) => {
       nodeCount: nodes.length,
       nodeTypes: nodes.map(n => typeof n)
     });
-    
+
     // Log detailed info about each node and extract mesh data
     const meshDataArray: any[] = [];
-    
+
     nodes.forEach((node, index) => {
       console.log(`Worker: Node ${index} details:`, {
         type: typeof node,
@@ -146,7 +146,7 @@ self.onmessage = async (e: MessageEvent<SceneParams>) => {
         material: node.material,
         keys: Object.keys(node)
       });
-      
+
       // Extract mesh data from the GLTFNode's manifold
       // GLTFNode objects contain WASM references that can't be sent through postMessage
       // So we need to extract the raw mesh data here in the worker
@@ -166,7 +166,7 @@ self.onmessage = async (e: MessageEvent<SceneParams>) => {
             vertPropertiesLength: mesh.vertProperties?.length,
             triVertsLength: mesh.triVerts?.length
           });
-          
+
           // Convert to plain object that can be sent through postMessage
           const meshData = {
             name: node.name,
@@ -178,7 +178,7 @@ self.onmessage = async (e: MessageEvent<SceneParams>) => {
             triVerts: Array.from(mesh.triVerts), // Uint32Array to regular array
             numProp: mesh.numProp
           };
-          
+
           console.log(`Worker: Mesh data prepared for node ${index}:`, {
             name: meshData.name,
             numVert: meshData.numVert,
@@ -188,7 +188,7 @@ self.onmessage = async (e: MessageEvent<SceneParams>) => {
             firstVert: meshData.vertProperties.slice(0, 3),
             firstTri: meshData.triVerts.slice(0, 3)
           });
-          
+
           meshDataArray.push(meshData);
         } catch (err) {
           console.error(`Worker: Error extracting mesh from node ${index}:`, err);
@@ -199,7 +199,7 @@ self.onmessage = async (e: MessageEvent<SceneParams>) => {
         throw new Error(`Node ${index} (${node.name}) has no valid manifold object`);
       }
     });
-    
+
     console.log('Worker: All mesh data extracted', {
       meshCount: meshDataArray.length,
       meshNames: meshDataArray.map(m => m.name)
