@@ -41,7 +41,7 @@ geometryWorker.onmessage = (e: MessageEvent) => {
   if (e.data.type === 'geometry') {
     const nodes = e.data.nodes;
     const lockCamera = lockCameraCheckbox.checked;
-    
+
     try {
       renderNodes(nodes, scene, camera, controls, lockCamera, meshGroup);
       status.textContent = 'Ready';
@@ -71,13 +71,13 @@ geometryWorker.onerror = (error) => {
  */
 function updateScene() {
   const params: SceneParams = {
-    radiusScale: parseFloat(radiusScaleSlider.value),
+    libraryRadiusScale: parseFloat(radiusScaleSlider.value),
     edgeLength: parseFloat(edgeLengthSlider.value),
   };
 
   status.textContent = 'Generating geometry...';
   status.style.color = '#2196F3';
-  
+
   // Send parameters to worker
   geometryWorker.postMessage(params);
 }
@@ -97,7 +97,7 @@ edgeLengthSlider.addEventListener('input', () => {
 lockCameraCheckbox.addEventListener('change', () => {
   // Save preference to localStorage
   localStorage.setItem(CAMERA_LOCK_KEY, lockCameraCheckbox.checked.toString());
-  
+
   // If unchecking, immediately reposition camera to current model
   if (!lockCameraCheckbox.checked) {
     updateScene();
