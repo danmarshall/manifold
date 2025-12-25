@@ -5,12 +5,28 @@ import * as THREE from 'three';
  * Convert GLTFNode mesh to Three.js geometry
  */
 function gltfNodeToThreeGeometry(node: any): THREE.BufferGeometry {
+  console.log('GeometryConverter: Converting node to THREE.BufferGeometry');
+  console.log('GeometryConverter: Node structure:', {
+    hasNumVert: 'numVert' in node,
+    hasNumTri: 'numTri' in node,
+    hasGetVert: typeof node.getVert === 'function',
+    hasGetTri: typeof node.getTri === 'function',
+    numVert: node.numVert,
+    numTri: node.numTri
+  });
+  
   const geometry = new THREE.BufferGeometry();
   
   // Get mesh data
   const numVert = node.numVert;
   const numTri = node.numTri;
   
+  if (!numVert || !numTri) {
+    console.error('GeometryConverter: ✗ Node missing vertex or triangle count!', { numVert, numTri });
+    throw new Error(`Invalid node: numVert=${numVert}, numTri=${numTri}`);
+  }
+  
+  console.log(`GeometryConverter: Extracting ${numVert} vertices...`);
   // Create Float32Array for positions (3 values per vertex)
   const positions = new Float32Array(numVert * 3);
   for (let i = 0; i < numVert; i++) {
@@ -19,7 +35,12 @@ function gltfNodeToThreeGeometry(node: any): THREE.BufferGeometry {
     positions[i * 3 + 1] = vert[1];
     positions[i * 3 + 2] = vert[2];
   }
+  console.log('GeometryConverter: ✓ Vertices extracted, sample:', {
+    first: [positions[0], positions[1], positions[2]],
+    last: [positions[positions.length - 3], positions[positions.length - 2], positions[positions.length - 1]]
+  });
   
+  console.log(`GeometryConverter: Extracting ${numTri} triangles...`);
   // Create Uint32Array for indices
   const indices = new Uint32Array(numTri * 3);
   for (let i = 0; i < numTri; i++) {
@@ -28,10 +49,17 @@ function gltfNodeToThreeGeometry(node: any): THREE.BufferGeometry {
     indices[i * 3 + 1] = tri[1];
     indices[i * 3 + 2] = tri[2];
   }
+  console.log('GeometryConverter: ✓ Triangles extracted, sample:', {
+    first: [indices[0], indices[1], indices[2]],
+    last: [indices[indices.length - 3], indices[indices.length - 2], indices[indices.length - 1]]
+  });
   
+  console.log('GeometryConverter: Setting geometry attributes...');
   geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
   geometry.setIndex(new THREE.BufferAttribute(indices, 1));
+  console.log('GeometryConverter: Computing vertex normals...');
   geometry.computeVertexNormals();
+  console.log('GeometryConverter: ✓ Geometry complete');
   
   return geometry;
 }

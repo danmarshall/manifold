@@ -38,24 +38,53 @@ const geometryWorker = new Worker(
 
 // Handle messages from worker
 geometryWorker.onmessage = (e: MessageEvent) => {
-  console.log('Main: Received message from worker', e.data);
+  console.log('=== Main: RECEIVED MESSAGE FROM WORKER ===');
+  console.log('Main: Message data:', e.data);
+  console.log('Main: Message type:', e.data?.type);
   
   if (e.data.type === 'geometry') {
     const nodes = e.data.nodes;
     console.log('Main: Received geometry nodes', { 
-      nodeCount: nodes?.length, 
-      nodes: nodes 
+      nodeCount: nodes?.length,
+      isArray: Array.isArray(nodes),
+      nodeTypes: nodes ? nodes.map((n: any) => typeof n) : 'no nodes'
     });
     
+    // Log each node in detail
+    if (nodes && Array.isArray(nodes)) {
+      nodes.forEach((node: any, index: number) => {
+        console.log(`Main: Node ${index}:`, {
+          type: typeof node,
+          constructor: node?.constructor?.name,
+          keys: node ? Object.keys(node) : 'no keys',
+          hasNumVert: node && 'numVert' in node,
+          hasNumTri: node && 'numTri' in node,
+          numVert: node?.numVert,
+          numTri: node?.numTri,
+          hasGetVert: node && typeof node.getVert === 'function',
+          hasGetTri: node && typeof node.getTri === 'function',
+          hasManifold: node && 'manifold' in node,
+          hasMaterial: node && 'material' in node,
+          name: node?.name,
+          material: node?.material
+        });
+      });
+    }
+    
     const lockCamera = lockCameraCheckbox.checked;
+    console.log('Main: Camera lock state:', lockCamera);
 
     try {
+      console.log('Main: Calling renderNodes()...');
       renderNodes(nodes, scene, camera, controls, lockCamera, meshGroup);
-      console.log('Main: Geometry rendered successfully');
+      console.log('Main: ✓ Geometry rendered successfully');
+      console.log('Main: Scene now has', scene.children.length, 'children');
+      console.log('Main: MeshGroup now has', meshGroup.children.length, 'children');
       status.textContent = 'Ready';
       status.style.color = '#4CAF50';
     } catch (error) {
-      console.error('Main: Error rendering geometry:', error);
+      console.error('Main: ✗ Error rendering geometry:', error);
+      console.error('Main: Error stack:', error instanceof Error ? error.stack : 'no stack');
       status.textContent = `Rendering error: ${error}`;
       status.style.color = '#f44336';
     }
@@ -66,6 +95,7 @@ geometryWorker.onmessage = (e: MessageEvent) => {
   } else {
     console.warn('Main: Unknown message type from worker', e.data);
   }
+  console.log('=== Main: MESSAGE HANDLING COMPLETE ===');
 };
 
 // Handle worker errors

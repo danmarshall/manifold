@@ -1,6 +1,8 @@
 // Web Worker for generating geometry in background thread
 // This keeps the UI responsive during complex geometry generation
 import Module from 'manifold-3d';
+// GLTFNode is a higher-level class, not part of the base WASM module
+import { GLTFNode } from 'manifold-3d/manifoldCAD';
 
 import { createScene, SceneParams } from 'my-3d-app';
 
@@ -9,7 +11,7 @@ import type { Manifold as ManifoldType } from 'manifold-3d/lib/manifoldCAD.js';
 
 // Runtime class references - will be extracted from WASM module
 let ManifoldClass: (typeof ManifoldType) | null = null;
-let GLTFNodeClass: any = null; // GLTFNode is accessed as Manifold.GLTFNode
+const GLTFNodeClass = GLTFNode; // GLTFNode is imported from manifoldCAD, not from wasm
 
 // Initialize WASM module once when worker starts
 async function initializeWASM() {
@@ -28,11 +30,11 @@ async function initializeWASM() {
       wasm.setup();
       console.log('Worker: Step 5 - setup() completed');
 
-      console.log('Worker: Step 6 - Extracting Manifold and GLTFNode using destructuring (like three.ts)');
-      // Following the pattern from bindings/wasm/examples/three.ts lines 20-22
-      const { Manifold, GLTFNode } = wasm;
+      console.log('Worker: Step 6 - Extracting Manifold using destructuring (like three.ts line 22)');
+      // Following the pattern from bindings/wasm/examples/three.ts line 22
+      // Note: GLTFNode is NOT in wasm, it's imported from manifoldCAD module
+      const { Manifold } = wasm;
       ManifoldClass = Manifold;
-      GLTFNodeClass = GLTFNode;
       
       console.log('Worker: Step 7 - Classes extracted', {
         hasManifold: !!ManifoldClass,
@@ -95,11 +97,43 @@ self.onmessage = async (e: MessageEvent<SceneParams>) => {
     const nodes = Array.isArray(sceneResult) ? sceneResult : [sceneResult];
     console.log('Worker: Processed into array', {
       nodeCount: nodes.length,
-      nodeTypes: nodes.map(n => typeof n),
-      firstNodeSample: nodes[0] ? {
-        hasNumVert: 'numVert' in nodes[0],
-        hasNumTri: 'numTri' in nodes[0]
-      } : 'no first node'
+      nodeTypes: nodes.map(n => typeof n)
+    });
+    
+    // Log detailed info about each node
+    nodes.forEach((node, index) => {
+      console.log(`Worker: Node ${index} details:`, {
+        type: typeof node,
+        constructor: node?.constructor?.name,
+        hasManifold: 'manifold' in node,
+        hasMaterial: 'material' in node,
+        hasName: 'name' in node,
+        name: node.name,
+        manifoldType: node.manifold ? typeof node.manifold : 'no manifold',
+        manifoldConstructor: node.manifold?.constructor?.name,
+        hasGetMesh: node.manifold && typeof node.manifold.getMesh === 'function',
+        material: node.material,
+        keys: Object.keys(node)
+      });
+      
+      // If node has a manifold, try to get mesh info
+      if (node.manifold && typeof node.manifold.getMesh === 'function') {
+        try {
+          const mesh = node.manifold.getMesh();
+          console.log(`Worker: Node ${index} mesh from manifold:`, {
+            meshType: typeof mesh,
+            meshConstructor: mesh?.constructor?.name,
+            hasNumVert: 'numVert' in mesh,
+            hasNumTri: 'numTri' in mesh,
+            numVert: mesh.numVert,
+            numTri: mesh.numTri,
+            hasGetVert: typeof mesh.getVert === 'function',
+            hasGetTri: typeof mesh.getTri === 'function'
+          });
+        } catch (err) {
+          console.error(`Worker: Error getting mesh from node ${index}:`, err);
+        }
+      }
     });
 
     // Send geometry back to main thread
