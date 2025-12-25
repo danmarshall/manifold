@@ -1,6 +1,6 @@
 // Web Worker for generating geometry in background thread
 // This keeps the UI responsive during complex geometry generation
-// Following the pattern from three.ts which uses 'built/manifold'
+// Using manifold-3d/lib/manifoldCAD.js which includes both Module and GLTFNode
 import Module from 'manifold-3d/lib/manifoldCAD.js';
 import { GLTFNode } from 'manifold-3d/lib/manifoldCAD.js';
 
@@ -47,12 +47,21 @@ async function initializeWASM() {
       });
 
       console.log('Worker: Step 8 - WASM initialization complete!');
+      
+      // Send ready message to main thread
+      console.log('Worker: Sending ready message to main thread');
+      self.postMessage({ type: 'ready' });
+      console.log('Worker: ✓ Ready message sent');
     } catch (error) {
       console.error('Worker: FATAL ERROR during WASM initialization', error);
       console.error('Worker: Error details', {
         message: error instanceof Error ? error.message : String(error),
         stack: error instanceof Error ? error.stack : 'no stack',
         error: error
+      });
+      self.postMessage({
+        type: 'error',
+        message: `WASM initialization failed: ${error instanceof Error ? error.message : String(error)}`
       });
       throw error;
     }
@@ -61,6 +70,10 @@ async function initializeWASM() {
   }
 }
 
+// Start initialization immediately when worker loads
+console.log('Worker: Worker script loaded, starting initialization...');
+initializeWASM();
+
 // Handle messages from main thread
 self.onmessage = async (e: MessageEvent<SceneParams>) => {
   console.log('=== Worker: NEW MESSAGE RECEIVED ===');
@@ -68,10 +81,12 @@ self.onmessage = async (e: MessageEvent<SceneParams>) => {
   console.log('Worker: Message type:', typeof e.data);
 
   try {
-    // Initialize WASM if not already done
-    console.log('Worker: About to call initializeWASM()');
-    await initializeWASM();
-    console.log('Worker: ✓ initializeWASM() completed successfully');
+    // Wait for WASM to be initialized (should already be done by now)
+    if (!ManifoldClass) {
+      console.log('Worker: WASM not yet initialized, waiting...');
+      await initializeWASM();
+    }
+    console.log('Worker: ✓ WASM is ready');
 
     // Generate geometry
     const params = e.data;

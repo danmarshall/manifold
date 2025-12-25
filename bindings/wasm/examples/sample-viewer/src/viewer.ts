@@ -30,6 +30,10 @@ const { scene, camera, renderer, controls } = setupScene(canvas);
 const meshGroup = new THREE.Group();
 scene.add(meshGroup);
 
+// Track worker ready state
+let workerReady = false;
+let pendingUpdate = false;
+
 // Initialize Web Worker for geometry generation
 console.log('Main: Creating Web Worker for geometry generation...');
 console.log('Main: Worker URL:', new URL('./geometry.worker.ts', import.meta.url).href);
@@ -48,7 +52,19 @@ geometryWorker.onmessage = (e: MessageEvent) => {
   console.log('Main: Message data:', e.data);
   console.log('Main: Message type:', e.data?.type);
   
-  if (e.data.type === 'geometry') {
+  if (e.data.type === 'ready') {
+    console.log('Main: ✓ Worker is ready!');
+    workerReady = true;
+    status.textContent = 'Worker ready';
+    status.style.color = '#4CAF50';
+    
+    // If we have a pending update, execute it now
+    if (pendingUpdate) {
+      console.log('Main: Executing pending update...');
+      pendingUpdate = false;
+      updateScene();
+    }
+  } else if (e.data.type === 'geometry') {
     const meshes = e.data.meshes;
     console.log('Main: Received geometry meshes', { 
       meshCount: meshes?.length,
@@ -126,15 +142,26 @@ geometryWorker.onmessageerror = (error) => {
  * Sends parameters to worker for geometry generation
  */
 function updateScene() {
+  console.log('=== Main: UPDATE SCENE CALLED ===');
+  
+  // Check if worker is ready
+  if (!workerReady) {
+    console.log('Main: Worker not ready yet, marking update as pending');
+    pendingUpdate = true;
+    status.textContent = 'Waiting for worker...';
+    status.style.color = '#FF9800';
+    return;
+  }
+  
   const params: SceneParams = {
     libraryRadiusScale: parseFloat(radiusScaleSlider.value),
     edgeLength: parseFloat(edgeLengthSlider.value),
   };
 
-  console.log('=== Main: UPDATE SCENE CALLED ===');
   console.log('Main: Parameters:', params);
   console.log('Main: Worker state:', {
     worker: geometryWorker,
+    workerReady: workerReady,
     hasOnMessage: !!geometryWorker.onmessage,
     hasOnError: !!geometryWorker.onerror
   });
@@ -192,12 +219,10 @@ animate(renderer, scene, camera, controls);
 console.log('=== Main: INITIALIZATION COMPLETE ===');
 console.log('Main: Scene setup:', { scene, camera, renderer, controls });
 console.log('Main: Worker setup:', { geometryWorker });
-console.log('Main: About to call initial updateScene()...');
+console.log('Main: Waiting for worker ready message, then will call updateScene()');
 
 status.textContent = 'Initializing...';
 status.style.color = '#2196F3';
 
-setTimeout(() => {
-  console.log('Main: Calling updateScene() after 100ms delay to ensure worker is ready');
-  updateScene();
-}, 100);
+// updateScene() will be called automatically when worker sends 'ready' message
+updateScene();
