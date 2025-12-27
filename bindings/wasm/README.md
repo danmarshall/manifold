@@ -34,7 +34,13 @@ Please see our usage [examples](https://github.com/elalish/manifold/tree/master/
 
 ## Creating Reusable Libraries
 
-If you want to create reusable libraries that work in both manifoldCAD.org and custom applications with their own WASM instances, please see our guide on [Creating Reusable Libraries](./documents/Creating%20Reusable%20Libraries.md). This guide explains how to make your libraries context-agnostic so they work seamlessly in both environments. 
+If you want to create reusable libraries that work in both manifoldCAD.org and custom applications with their own WASM instances, please see our guide on [Creating Reusable Libraries](./documents/Creating%20Reusable%20Libraries.md). This guide explains how to make your libraries context-agnostic so they work seamlessly in both environments.
+
+The guide covers 4 patterns:
+1. **Simple 2-parameter** - For basic creation functions: `createShape(size, context?)`
+2. **Factory pattern** - For libraries with many functions
+3. **ES module exports** - For simple libraries with few functions
+4. **3-parameter convention** - For operations and functional composition: `operation(options, target?, context?)` 
 
 ## Command Line Interface
 

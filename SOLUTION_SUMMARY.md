@@ -1,4 +1,4 @@
-# Solution: Context-Agnostic Library Pattern
+# Solution: Context-Agnostic Library Patterns
 
 ## Problem Summary
 
@@ -16,9 +16,11 @@ If a library like "TeapotCube" imports from `'manifold-3d/manifoldCAD'`, it cann
 
 ## Solution
 
-The solution is to make library functions accept an **optional Manifold context parameter**. This allows the same library to work in both contexts:
+The solution is to make library functions accept an **optional Manifold context parameter**. This allows the same library to work in both contexts. We provide multiple patterns depending on the library's needs.
 
-### Example Library Function
+### Pattern 1: Simple 2-Parameter Pattern (Basic Creation)
+
+For simple creation functions:
 
 ```typescript
 import {Manifold} from 'manifold-3d/manifoldCAD';
@@ -26,13 +28,11 @@ import type {ManifoldToplevel} from 'manifold-3d';
 
 export function createTeapotCube(
   size: number = 100,
-  manifoldContext?: ManifoldToplevel  // Optional parameter
+  manifoldContext?: ManifoldToplevel
 ) {
-  // Use provided context or fall back to default import
   const M = manifoldContext?.Manifold ?? Manifold;
   const {cube, cylinder} = M;
   
-  // Create your geometry using M
   const body = cube([size, size, size], true);
   const spout = cylinder(size * 0.15, size * 0.4)
     .rotate([0, 90, 0])
@@ -42,27 +42,85 @@ export function createTeapotCube(
 }
 ```
 
+### Pattern 2: 3-Parameter Convention (Functional Composition)
+
+For functions that operate on existing geometry or support functional programming patterns:
+
+```typescript
+import {Manifold} from 'manifold-3d/manifoldCAD';
+import type {ManifoldToplevel} from 'manifold-3d';
+
+interface GridOptions {
+  rows: number;
+  cols: number;
+  spacing: number;
+}
+
+export function layoutToGrid(
+  options: GridOptions,
+  target?: Manifold | null,
+  manifoldContext?: ManifoldToplevel
+) {
+  const M = manifoldContext?.Manifold ?? Manifold;
+  const {cube} = M;
+  
+  // Use target or create default shape
+  const shape = target ?? cube([10, 10, 10]);
+  
+  let result = shape;
+  for (let row = 0; row < options.rows; row++) {
+    for (let col = 0; col < options.cols; col++) {
+      if (row === 0 && col === 0) continue;
+      result = result.add(shape.translate([
+        col * options.spacing,
+        row * options.spacing,
+        0
+      ]));
+    }
+  }
+  return result;
+}
+```
+
+**3-Parameter Convention:**
+1. **options**: Configuration object
+2. **target**: Optional object to operate on (null for creation)
+3. **manifoldContext**: Optional WASM instance
+
+This enables currying and composition:
+```typescript
+const lib = createLayoutLibrary(wasm);
+const result = lib.circle({count: 6, radius: 50})(
+  lib.grid({rows: 3, cols: 3, spacing: 25})(baseShape)
+);
+```
+
 ### Usage in ManifoldCAD.org
 
 ```typescript
-import {createTeapotCube} from './teapot-cube';
+import {createTeapotCube, layoutToGrid} from './my-library';
 
-// No second parameter needed - uses global context
+// Simple creation - uses global context
 const teapot = createTeapotCube(100);
-export default teapot;
+
+// Operations - last parameter omitted
+const grid = layoutToGrid({rows: 3, cols: 3, spacing: 10}, teapot);
+
+export default grid;
 ```
 
 ### Usage in Custom Applications
 
 ```typescript
 import Module from 'manifold-3d';
-import {createTeapotCube} from './teapot-cube';
+import {createTeapotCube, layoutToGrid} from './my-library';
 
 const wasm = await Module();
 wasm.setup();
 
-// Pass your custom WASM instance as the second parameter
+// Pass WASM instance as last parameter
 const teapot = createTeapotCube(100, wasm);
+const grid = layoutToGrid({rows: 3, cols: 3, spacing: 10}, teapot, wasm);
 ```
 
 ## Key Benefits
@@ -71,15 +129,52 @@ const teapot = createTeapotCube(100, wasm);
 2. **Backward compatible**: Existing code in manifoldCAD.org continues to work
 3. **Type safe**: Full TypeScript support with proper types
 4. **Flexible**: Libraries can be used in web apps, Node.js, or anywhere
-5. **No breaking changes**: Optional parameter means existing code doesn't break
+5. **No breaking changes**: Optional parameters mean existing code doesn't break
+6. **Functional composition**: 3-parameter pattern enables currying and chaining
+
+## Available Patterns
+
+### Pattern 1: Simple 2-Parameter (Basic Creation)
+Best for simple creation functions that don't need configuration objects.
+- Parameters: `(value, manifoldContext?)`
+- Example: `createTeapotCube(size, wasm?)`
+
+### Pattern 2: Factory Pattern
+Best for libraries with many related functions.
+- Create a factory that binds all functions to a context
+- Example: `createGearLibrary(wasm?)` returns object with gear functions
+
+### Pattern 3: ES Module Exports
+Best for simple libraries with a few independent functions.
+- Multiple exports, each with optional context
+- Example: `createRoundedBox(size, radius, wasm?)`
+
+### Pattern 4: 3-Parameter Convention (Recommended for Operations)
+Best for functions that operate on existing geometry or support composition.
+- Parameters: `(options, target?, manifoldContext?)`
+- Enables currying: `layoutToGrid(opts)(shape)(wasm)`
+- Example: `layoutToGrid({rows: 3}, myShape, wasm)`
+
+## All manifoldCAD Exports
+
+Libraries can use any export from `manifold-3d/manifoldCAD`, including:
+- Core: `Manifold`, `CrossSection`, `Mesh`, `triangulate`
+- GLTF: `GLTFNode`, `GLTFMaterial`, `GLTFAttribute`, `VisualizationGLTFNode`, `getGLTFNodes`
+- Material/Debug: `setMaterial`, `show`, `only`
+- Animation: `setMorphStart`, `setMorphEnd`
+- Level of detail: `getCircularSegments`, `getMinCircularAngle`, `getMinCircularEdgeLength`
+- Import: `importManifold`, `importModel`
+- Types: `Box`, `Vec2`, `Vec3`, `Vec4`
 
 ## Files Added
 
-1. **Documentation**: `bindings/wasm/documents/Creating Reusable Libraries.md` - Comprehensive guide with multiple patterns and examples
-2. **Example Library**: `bindings/wasm/test/examples/teapot-cube.ts` - Full implementation of TeapotCube demonstrating the pattern
-3. **Simple Example**: `bindings/wasm/test/examples/simple-shapes-library.ts` - Simpler example for quick reference
-4. **Tests**: `bindings/wasm/test/reusable-library.test.ts` - Validates the pattern works in both contexts
-5. **Usage Examples**: 
+1. **Documentation**: `bindings/wasm/documents/Creating Reusable Libraries.md` - Comprehensive guide with all 4 patterns and examples
+2. **Example Libraries**: 
+   - `bindings/wasm/test/examples/teapot-cube.ts` - Basic 2-parameter pattern
+   - `bindings/wasm/test/examples/simple-shapes-library.ts` - Multiple simple functions
+   - `bindings/wasm/test/examples/layout-library.ts` - 3-parameter pattern with functional composition
+3. **Tests**: `bindings/wasm/test/reusable-library.test.ts` - Validates patterns work in both contexts
+4. **Usage Examples**: 
    - `bindings/wasm/test/examples/use-teapot-cube.mjs` - For manifoldCAD.org
    - `bindings/wasm/test/examples/use-teapot-custom-app.mjs` - For custom apps
 
@@ -87,6 +182,7 @@ const teapot = createTeapotCube(100, wasm);
 
 - Updated `bindings/wasm/README.md` to link to the new guide
 - Updated `bindings/wasm/documents/Get Started.md` with library pattern overview
+- Updated `SOLUTION_SUMMARY.md` with all patterns
 
 ## Testing
 
@@ -96,10 +192,20 @@ The test suite (`reusable-library.test.ts`) validates:
 - Both contexts produce identical geometric results
 - Factory pattern for complex libraries works in both contexts
 
-## Alternative Patterns
+## Functional Composition
 
-The documentation also covers:
-- **Factory Pattern**: For libraries with many functions, create a factory that binds all functions to a context
-- **ES Module Exports**: For simple libraries with just a few functions
+The 3-parameter pattern enables powerful functional programming:
+
+```typescript
+// Curry functions for composition
+const gridLayout = (opts) => (obj, ctx) => layoutToGrid(opts, obj, ctx);
+const circularLayout = (opts) => (obj, ctx) => layoutToCircle(opts, obj, ctx);
+
+// Compose operations
+const pattern = circularLayout({count: 6, radius: 50})(
+  gridLayout({rows: 2, cols: 2, spacing: 20})(baseShape, wasm),
+  wasm
+);
+```
 
 All patterns follow the same core principle: accept an optional Manifold context parameter with a sensible default.
