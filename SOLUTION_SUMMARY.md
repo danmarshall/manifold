@@ -85,7 +85,46 @@ export function layoutToGrid(
 **3-Parameter Convention:**
 1. **options**: Configuration object
 2. **target**: Optional object to operate on (null for creation)
-3. **manifoldContext**: Optional WASM instance
+3. **manifoldContext**: Optional WASM instance (type: `ManifoldToplevel`)
+
+**Type of 3rd parameter:** The `manifoldContext` parameter has type `ManifoldToplevel` which includes:
+- `Manifold`, `CrossSection`, `Mesh` - Core classes
+- `triangulate`, `setup()` - Utility functions
+- Level of detail functions
+
+**Using multiple types (Box, Vec2, Vec3, etc.):**
+
+```typescript
+import type {ManifoldToplevel, Box, Vec2, Vec3} from 'manifold-3d';
+import {Manifold, CrossSection} from 'manifold-3d/manifoldCAD';
+
+export function createBoundedVoxels(
+  options: {bounds: Box; divisions?: Vec3},
+  target?: Manifold | null,
+  manifoldContext?: ManifoldToplevel
+) {
+  const M = manifoldContext?.Manifold ?? Manifold;
+  const {bounds, divisions = [3, 3, 3]} = options;
+  
+  // Calculate from Box and Vec3
+  const size: Vec3 = [
+    (bounds.max[0] - bounds.min[0]) / divisions[0],
+    (bounds.max[1] - bounds.min[1]) / divisions[1],
+    (bounds.max[2] - bounds.min[2]) / divisions[2]
+  ];
+  // ... implementation
+}
+
+export function createExtrudedShape(
+  options: {polygon: Vec2[]; height: number},
+  target?: Manifold | null,
+  manifoldContext?: ManifoldToplevel
+) {
+  const CS = manifoldContext?.CrossSection ?? CrossSection;
+  const profile = new CS(options.polygon); // Vec2 array
+  return profile.extrude(options.height);
+}
+```
 
 This enables currying and composition:
 ```typescript

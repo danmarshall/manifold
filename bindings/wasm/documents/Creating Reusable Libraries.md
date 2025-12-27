@@ -239,6 +239,26 @@ import {
 } from 'manifold-3d/manifoldCAD';
 ```
 
+**Important**: When using the 3-parameter pattern, the type of the 3rd parameter is `ManifoldToplevel`:
+
+```typescript
+import type {ManifoldToplevel} from 'manifold-3d';
+
+export function myFunction(
+  options: MyOptions,
+  target?: Manifold | null,
+  manifoldContext?: ManifoldToplevel  // <-- This is the type
+): Manifold {
+  // ...
+}
+```
+
+The `ManifoldToplevel` interface includes:
+- `Manifold`, `CrossSection`, `Mesh` - Core classes
+- `triangulate` - Utility function
+- `setup()` - WASM initialization function
+- Level of detail functions
+
 ### Example: Layout Functions
 
 ```typescript
@@ -257,7 +277,7 @@ interface GridOptions {
 export function layoutToGrid(
   options: GridOptions,
   target?: Manifold | null,
-  manifoldContext?: ManifoldToplevel
+  manifoldContext?: ManifoldToplevel  // Type of 3rd parameter
 ): Manifold {
   const M = manifoldContext?.Manifold ?? Manifold;
   const {cube} = M;
@@ -314,6 +334,159 @@ export default () => {
   return layoutToGrid({rows: 3, cols: 3, spacing: 20}, myShape);
 };
 ```
+
+### Example: Using Multiple Types (Box, Vec2, Vec3, etc.)
+
+Here's a comprehensive example showing how to use various manifoldCAD types with the dual-context pattern:
+
+```typescript
+import type {Manifold as ManifoldType} from 'manifold-3d/manifold-encapsulated-types';
+import type {ManifoldToplevel, Box, Vec2, Vec3} from 'manifold-3d';
+import {Manifold, CrossSection} from 'manifold-3d/manifoldCAD';
+
+/**
+ * Create a voxelized shape within given bounds.
+ * Demonstrates using Box and Vec3 types.
+ */
+export function createBoundedVoxels(
+  options: {bounds: Box; divisions?: Vec3},
+  target?: ManifoldType | null,
+  manifoldContext?: ManifoldToplevel
+): ManifoldType {
+  const M = manifoldContext?.Manifold ?? Manifold;
+  const {cube, sphere} = M;
+  
+  const {bounds, divisions = [3, 3, 3]} = options;
+  
+  // Calculate voxel size from Box bounds and Vec3 divisions
+  const size: Vec3 = [
+    (bounds.max[0] - bounds.min[0]) / divisions[0],
+    (bounds.max[1] - bounds.min[1]) / divisions[1],
+    (bounds.max[2] - bounds.min[2]) / divisions[2]
+  ];
+  
+  const baseShape = target ?? sphere(Math.min(...size) * 0.4);
+  
+  let result = cube([0, 0, 0]);
+  let first = true;
+  
+  // Create voxel grid using Vec3 positions
+  for (let x = 0; x < divisions[0]; x++) {
+    for (let y = 0; y < divisions[1]; y++) {
+      for (let z = 0; z < divisions[2]; z++) {
+        const pos: Vec3 = [
+          bounds.min[0] + (x + 0.5) * size[0],
+          bounds.min[1] + (y + 0.5) * size[1],
+          bounds.min[2] + (z + 0.5) * size[2]
+        ];
+        
+        const voxel = baseShape.scale(size).translate(pos);
+        result = first ? voxel : result.add(voxel);
+        first = false;
+      }
+    }
+  }
+  
+  return result;
+}
+
+/**
+ * Create a 3D shape by extruding a 2D polygon.
+ * Demonstrates using Vec2 arrays with CrossSection.
+ */
+export function createExtrudedShape(
+  options: {polygon: Vec2[]; height: number; twist?: number},
+  target?: ManifoldType | null,
+  manifoldContext?: ManifoldToplevel
+): ManifoldType {
+  const CS = manifoldContext?.CrossSection ?? CrossSection;
+  
+  const {polygon, height, twist = 0} = options;
+  
+  // Create 2D cross-section from Vec2 array
+  const profile = new CS(polygon);
+  
+  // Extrude to 3D
+  return profile.extrude(height, twist);
+}
+
+/**
+ * Calculate bounding box center and create marker.
+ * Demonstrates working with Box type.
+ */
+export function createBoundingBoxMarker(
+  options: {shapes: ManifoldType[]},
+  target?: ManifoldType | null,
+  manifoldContext?: ManifoldToplevel
+): ManifoldType {
+  const M = manifoldContext?.Manifold ?? Manifold;
+  const {sphere} = M;
+  
+  // Combine shapes to get overall bounds
+  let combined = options.shapes[0];
+  for (let i = 1; i < options.shapes.length; i++) {
+    combined = combined.add(options.shapes[i]);
+  }
+  
+  // Get bounding box (Box type)
+  const bounds: Box = combined.boundingBox();
+  
+  // Calculate center from Box
+  const center: Vec3 = [
+    (bounds.min[0] + bounds.max[0]) / 2,
+    (bounds.min[1] + bounds.max[1]) / 2,
+    (bounds.min[2] + bounds.max[2]) / 2
+  ];
+  
+  const marker = target ?? sphere(5);
+  return combined.add(marker.translate(center));
+}
+
+// Usage in manifoldCAD.org
+export default () => {
+  // Example 1: Using Box and Vec3
+  const bounds: Box = {min: [-50, -50, -50], max: [50, 50, 50]};
+  const voxels = createBoundedVoxels(
+    {bounds, divisions: [3, 3, 3]},
+    Manifold.sphere(8)
+  );
+  
+  // Example 2: Using Vec2 array
+  const star: Vec2[] = [];
+  for (let i = 0; i < 10; i++) {
+    const angle = (i * Math.PI * 2) / 10;
+    const radius = i % 2 === 0 ? 30 : 15;
+    star.push([radius * Math.cos(angle), radius * Math.sin(angle)]);
+  }
+  const extruded = createExtrudedShape({polygon: star, height: 20});
+  
+  return voxels.add(extruded.translate([120, 0, 0]));
+};
+```
+
+**Usage in custom applications:**
+
+```typescript
+import Module from 'manifold-3d';
+import {createBoundedVoxels, createExtrudedShape} from './my-library';
+
+const wasm = await Module();
+wasm.setup();
+
+// All functions work with custom WASM instance
+const bounds = {min: [-50, -50, -50], max: [50, 50, 50]};
+const voxels = createBoundedVoxels({bounds, divisions: [4, 4, 4]}, null, wasm);
+
+const triangle: Vec2[] = [[0, 0], [30, 0], [15, 30]];
+const extruded = createExtrudedShape({polygon: triangle, height: 40}, null, wasm);
+```
+
+This example shows:
+- `Box` type for bounding boxes
+- `Vec2` arrays for 2D polygons
+- `Vec3` for 3D coordinates and divisions
+- `CrossSection` for 2D operations
+- All working with both manifoldCAD.org and custom contexts
 
 ### Functional Composition
 
