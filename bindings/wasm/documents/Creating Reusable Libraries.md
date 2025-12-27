@@ -7,7 +7,7 @@ This guide explains how to create TypeScript/JavaScript libraries that can work 
 
 ## The Challenge
 
-ManifoldCAD has two different usage patterns:
+ManifoldCAD has two different usage patterns with different bundling approaches:
 
 **1. ManifoldCAD.org web app:**
 ```typescript
@@ -15,6 +15,9 @@ ManifoldCAD has two different usage patterns:
 import {Manifold} from 'manifold-3d/manifoldCAD';
 const {cube, sphere} = Manifold;
 ```
+- Uses a **global singleton** WASM instance created in a Web Worker
+- Bundles code at **runtime** using esbuild-wasm
+- Scripts are bundled dynamically when you click "Run"
 
 **2. Custom applications:**
 ```typescript
@@ -24,6 +27,9 @@ const wasm = await Module();
 wasm.setup();
 const { Manifold } = wasm;
 ```
+- Creates a **custom WASM instance** under your control
+- Bundles code at **build time** using standard tools (Webpack, Vite, Rollup, etc.)
+- No runtime bundling - everything is pre-bundled before deployment
 
 If your library imports from `'manifold-3d/manifoldCAD'`, it will only work in the first context. To make your library work in both contexts, follow the patterns below.
 
@@ -87,17 +93,25 @@ export default teapot;
 
 ### Usage in Custom Applications
 
+Custom applications create their own WASM instance and bundle code at build time (using tools like Webpack, Rollup, or Vite), not at runtime like manifoldCAD.org does.
+
 ```typescript
-// In your custom app
+// In your custom app (bundled at build time)
 import Module from 'manifold-3d';
 import {createTeapotCube} from './teapot-cube';
 
+// Initialize your WASM instance
 const wasm = await Module();
 wasm.setup();
 
 // Pass your custom WASM instance as the second parameter
 const teapot = createTeapotCube(150, wasm);
 ```
+
+**Key differences from manifoldCAD.org:**
+- Custom apps bundle at **build time** using standard bundlers (Webpack, Vite, Rollup, etc.)
+- manifoldCAD.org bundles at **runtime** using esbuild-wasm in a Web Worker
+- Both patterns work with the same library code by passing the appropriate context
 
 ## Pattern 2: Parameterized Context for Complex Libraries
 
@@ -198,6 +212,56 @@ export default () => createRoundedBox(100, 10);
 5. **Don't create side effects**: Libraries should not create geometry as a side effect. Only create geometry when functions are explicitly called.
 
 6. **Test in both contexts**: Ensure your library works both with `import {Manifold} from 'manifold-3d/manifoldCAD'` and with a custom WASM instance.
+
+## Custom Application Setup
+
+Custom applications have different requirements than manifoldCAD.org:
+
+### Build-Time Bundling
+
+Unlike manifoldCAD.org which bundles at runtime, custom apps use standard build-time bundlers:
+
+```bash
+# Using Vite
+npm install -D vite
+
+# Using Webpack
+npm install -D webpack webpack-cli
+
+# Using Rollup
+npm install -D rollup
+```
+
+Your bundler configuration should handle WASM files. For Vite, this works out of the box. For Webpack, you may need to configure asset handling.
+
+### WASM Instance Management
+
+In custom apps, you control the WASM lifecycle:
+
+```typescript
+// app.ts - Your custom application entry point
+import Module from 'manifold-3d';
+import {createTeapotCube, createGearLibrary} from 'your-manifold-library';
+
+async function initialize() {
+  // Create and initialize WASM once at app startup
+  const wasm = await Module();
+  wasm.setup();
+  
+  // Pass the WASM instance to all library functions
+  const teapot = createTeapotCube(100, wasm);
+  const gears = createGearLibrary(wasm);
+  const gear = gears.spurGear(20, 10);
+  
+  // Use the geometry in your application...
+}
+
+initialize();
+```
+
+### No Worker Required
+
+Unlike manifoldCAD.org, custom apps typically don't need a Web Worker unless you're doing heavy computation and want to keep the UI responsive. The WASM instance runs in your main thread or in a worker of your choosing.
 
 ## Publishing to npm
 
