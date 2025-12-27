@@ -199,6 +199,166 @@ export function createCapsule(
 export default () => createRoundedBox(100, 10);
 ```
 
+## Pattern 4: Three-Parameter Convention for Functional Composition
+
+For maximum flexibility and to enable functional programming patterns like currying and composition, use a standardized 3-parameter signature:
+
+1. **options** - Configuration object for the function
+2. **target** - Optional object to operate on (null for creation functions)
+3. **manifoldContext** - Optional Manifold WASM instance
+
+This pattern supports complex function chains and composition.
+
+### Available Exports from manifold-3d/manifoldCAD
+
+The manifoldCAD module exports many types and utilities beyond just `Manifold`:
+
+```typescript
+import {
+  // Core classes
+  Manifold, CrossSection, Mesh,
+  
+  // GLTF and visualization
+  GLTFNode, GLTFMaterial, GLTFAttribute, 
+  VisualizationGLTFNode, getGLTFNodes,
+  
+  // Material and debugging
+  setMaterial, show, only,
+  
+  // Animation
+  setMorphStart, setMorphEnd,
+  
+  // Level of detail
+  getCircularSegments, getMinCircularAngle, getMinCircularEdgeLength,
+  
+  // Importing
+  importManifold, importModel,
+  
+  // Types
+  Box, Vec2, Vec3, Vec4
+} from 'manifold-3d/manifoldCAD';
+```
+
+### Example: Layout Functions
+
+```typescript
+import {Manifold, type ManifoldToplevel} from 'manifold-3d/manifoldCAD';
+
+interface GridOptions {
+  rows: number;
+  cols: number;
+  spacing: number;
+}
+
+/**
+ * Arrange objects in a grid pattern.
+ * Can create new geometry or clone existing geometry to grid positions.
+ */
+export function layoutToGrid(
+  options: GridOptions,
+  target?: Manifold | null,
+  manifoldContext?: ManifoldToplevel
+): Manifold {
+  const M = manifoldContext?.Manifold ?? Manifold;
+  const {cube} = M;
+  
+  // Use target or create default shape
+  const shape = target ?? cube([10, 10, 10]);
+  
+  let result = shape;
+  for (let row = 0; row < options.rows; row++) {
+    for (let col = 0; col < options.cols; col++) {
+      if (row === 0 && col === 0) continue; // Skip first position
+      const offset = [
+        col * options.spacing,
+        row * options.spacing,
+        0
+      ];
+      result = result.add(shape.translate(offset));
+    }
+  }
+  
+  return result;
+}
+
+interface HoneycombOptions {
+  count: number;
+  radius: number;
+  hexSize?: number;
+}
+
+/**
+ * Clone and arrange objects in a honeycomb pattern.
+ */
+export function cloneToHoneycomb(
+  options: HoneycombOptions,
+  target?: Manifold | null,
+  manifoldContext?: ManifoldToplevel
+): Manifold {
+  const M = manifoldContext?.Manifold ?? Manifold;
+  const {cylinder} = M;
+  
+  const shape = target ?? cylinder(5, 10);
+  const hexSize = options.hexSize ?? options.radius * 0.2;
+  
+  let result = shape;
+  // Honeycomb pattern logic...
+  // (simplified for example)
+  
+  return result;
+}
+
+// Default export for manifoldCAD.org
+export default () => {
+  const myShape = Manifold.sphere(5);
+  return layoutToGrid({rows: 3, cols: 3, spacing: 20}, myShape);
+};
+```
+
+### Functional Composition
+
+The 3-parameter pattern enables powerful functional composition:
+
+```typescript
+import {layoutToGrid, cloneToHoneycomb, applyMaterial} from 'my-library';
+
+// Curry functions for composition
+const gridLayout = (opts) => (obj, ctx) => layoutToGrid(opts, obj, ctx);
+const honeycomb = (opts) => (obj, ctx) => cloneToHoneycomb(opts, obj, ctx);
+
+// Compose operations
+const createPattern = (baseShape, wasm) => {
+  const grid = gridLayout({rows: 2, cols: 2, spacing: 50});
+  const honey = honeycomb({count: 20, radius: 30});
+  
+  return honey(grid(baseShape, wasm), wasm);
+};
+
+// Usage
+const wasm = await Module();
+wasm.setup();
+const pattern = createPattern(wasm.Manifold.sphere(5), wasm);
+```
+
+### Usage Examples
+
+```typescript
+// Creating new geometry
+const grid1 = layoutToGrid({rows: 3, cols: 3, spacing: 10}, null, wasm);
+
+// Operating on existing geometry
+const myShape = Manifold.cube([20, 20, 20]);
+const grid2 = layoutToGrid({rows: 4, cols: 4, spacing: 25}, myShape, wasm);
+
+// Chaining operations
+const base = Manifold.sphere(5);
+const pattern = cloneToHoneycomb(
+  {count: 12, radius: 40},
+  layoutToGrid({rows: 2, cols: 2, spacing: 15}, base, wasm),
+  wasm
+);
+```
+
 ## Best Practices
 
 1. **Always use optional context parameters**: Make the Manifold context optional with a sensible default so your library works seamlessly in manifoldCAD.org.
@@ -212,6 +372,12 @@ export default () => createRoundedBox(100, 10);
 5. **Don't create side effects**: Libraries should not create geometry as a side effect. Only create geometry when functions are explicitly called.
 
 6. **Test in both contexts**: Ensure your library works both with `import {Manifold} from 'manifold-3d/manifoldCAD'` and with a custom WASM instance.
+
+7. **Use the 3-parameter pattern for operations**: When creating functions that operate on existing geometry or support functional composition, follow the convention: `(options, target, manifoldContext)`. This enables currying and chaining.
+
+8. **Make all parameters optional where sensible**: Allow `options` to have defaults, `target` to be null (for creation), and `manifoldContext` to be undefined (for manifoldCAD.org compatibility).
+
+9. **Import all needed types**: Beyond `Manifold`, you may need `CrossSection`, `Mesh`, `GLTFNode`, `Vec2`, `Vec3`, and other exports from `manifold-3d/manifoldCAD`. Make sure to handle the context for all types you use.
 
 ## Custom Application Setup
 
