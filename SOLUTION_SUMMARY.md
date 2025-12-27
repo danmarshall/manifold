@@ -194,16 +194,44 @@ Best for functions that operate on existing geometry or support composition.
 - Enables currying: `layoutToGrid(opts)(shape)(wasm)`
 - Example: `layoutToGrid({rows: 3}, myShape, wasm)`
 
-## All manifoldCAD Exports
+## manifoldCAD Exports: What Needs Context?
 
-Libraries can use any export from `manifold-3d/manifoldCAD`, including:
-- Core: `Manifold`, `CrossSection`, `Mesh`, `triangulate`
+Libraries can use any export from `manifold-3d/manifoldCAD`. **Crucially**, they fall into two categories:
+
+### WASM Types (need `manifoldContext` parameter)
+These come from the WASM module (`ManifoldToplevel`):
+- Core: `Manifold`, `CrossSection`, `Mesh`
+- Functions: `triangulate`, `setup()`
+- Level of detail: `setMinCircularAngle`, `setMinCircularEdgeLength`, `setCircularSegments`, `getCircularSegments`, `resetToCircularDefaults`
+
+### JavaScript Utilities (context-independent)
+These are JavaScript wrappers that work with any Manifold instance - import directly:
 - GLTF: `GLTFNode`, `GLTFMaterial`, `GLTFAttribute`, `VisualizationGLTFNode`, `getGLTFNodes`
 - Material/Debug: `setMaterial`, `show`, `only`
 - Animation: `setMorphStart`, `setMorphEnd`
-- Level of detail: `getCircularSegments`, `getMinCircularAngle`, `getMinCircularEdgeLength`
 - Import: `importManifold`, `importModel`
-- Types: `Box`, `Vec2`, `Vec3`, `Vec4`
+- Types: `Box`, `Vec2`, `Vec3`, `Vec4` (TypeScript types only)
+
+**Example using both:**
+```typescript
+import {Manifold, GLTFNode} from 'manifold-3d/manifoldCAD';
+import type {ManifoldToplevel, Vec3} from 'manifold-3d';
+
+export function createColoredCube(
+  options: {size: Vec3},
+  target?: Manifold | null,
+  manifoldContext?: ManifoldToplevel
+) {
+  // WASM type - needs context
+  const M = manifoldContext?.Manifold ?? Manifold;
+  const shape = M.cube(options.size);
+  
+  // JavaScript utility - no context needed
+  const node = new GLTFNode();
+  node.manifold = shape;
+  return node;
+}
+```
 
 ## Files Added
 

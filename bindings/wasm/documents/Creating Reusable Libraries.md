@@ -211,32 +211,75 @@ This pattern supports complex function chains and composition.
 
 ### Available Exports from manifold-3d/manifoldCAD
 
-The manifoldCAD module exports many types and utilities beyond just `Manifold`:
+The manifoldCAD module exports many types and utilities. **Importantly**, they fall into two categories:
+
+#### 1. WASM Types (need context handling)
+
+These come from the WASM module and are available via `ManifoldToplevel`:
 
 ```typescript
-import {
-  // Core classes
-  Manifold, CrossSection, Mesh,
+// Core classes from WASM
+Manifold, CrossSection, Mesh
+
+// Functions from WASM
+triangulate, setup()
+
+// Level of detail functions from WASM
+setMinCircularAngle, setMinCircularEdgeLength, 
+setCircularSegments, getCircularSegments, resetToCircularDefaults
+```
+
+#### 2. JavaScript Utilities (context-independent)
+
+These are JavaScript wrappers that work with any Manifold instance - they don't need context handling:
+
+```typescript
+// GLTF and visualization (JavaScript utilities)
+GLTFNode, GLTFMaterial, GLTFAttribute, 
+VisualizationGLTFNode, getGLTFNodes
+
+// Material and debugging (JavaScript utilities)
+setMaterial, show, only
+
+// Animation (JavaScript utilities)
+setMorphStart, setMorphEnd
+
+// Importing (JavaScript utilities)
+importManifold, importModel
+
+// Type definitions (TypeScript types, not runtime)
+Box, Vec2, Vec3, Vec4
+```
+
+**Key distinction**: 
+- **WASM types** (Manifold, CrossSection, Mesh) need `manifoldContext` parameter for dual-context support
+- **JavaScript utilities** (GLTFNode, setMaterial, etc.) are imported directly and work in both contexts already
+- **Type definitions** (Box, Vec2, Vec3) are TypeScript types only, not runtime values
+
+**Example showing both:**
+
+```typescript
+import type {ManifoldToplevel, Vec3} from 'manifold-3d';
+import {Manifold, GLTFNode, setMaterial} from 'manifold-3d/manifoldCAD';
+
+export function createColoredShape(
+  options: {size: Vec3; color: Vec3},
+  target?: Manifold | null,
+  manifoldContext?: ManifoldToplevel
+) {
+  // Use context for WASM types
+  const M = manifoldContext?.Manifold ?? Manifold;
+  const {cube} = M;
   
-  // GLTF and visualization
-  GLTFNode, GLTFMaterial, GLTFAttribute, 
-  VisualizationGLTFNode, getGLTFNodes,
+  const shape = target ?? cube(options.size);
   
-  // Material and debugging
-  setMaterial, show, only,
+  // JavaScript utilities don't need context - import directly
+  const node = new GLTFNode();
+  node.manifold = shape;
+  node.material = {baseColorFactor: [...options.color, 1.0]};
   
-  // Animation
-  setMorphStart, setMorphEnd,
-  
-  // Level of detail
-  getCircularSegments, getMinCircularAngle, getMinCircularEdgeLength,
-  
-  // Importing
-  importManifold, importModel,
-  
-  // Types
-  Box, Vec2, Vec3, Vec4
-} from 'manifold-3d/manifoldCAD';
+  return node;
+}
 ```
 
 **Important**: When using the 3-parameter pattern, the type of the 3rd parameter is `ManifoldToplevel`:
@@ -247,17 +290,17 @@ import type {ManifoldToplevel} from 'manifold-3d';
 export function myFunction(
   options: MyOptions,
   target?: Manifold | null,
-  manifoldContext?: ManifoldToplevel  // <-- This is the type
+  manifoldContext?: ManifoldToplevel  // <-- Only includes WASM types
 ): Manifold {
   // ...
 }
 ```
 
 The `ManifoldToplevel` interface includes:
-- `Manifold`, `CrossSection`, `Mesh` - Core classes
-- `triangulate` - Utility function
+- `Manifold`, `CrossSection`, `Mesh` - Core WASM classes
+- `triangulate` - WASM utility function
 - `setup()` - WASM initialization function
-- Level of detail functions
+- Level of detail functions from WASM
 
 ### Example: Layout Functions
 

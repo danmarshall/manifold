@@ -14,6 +14,19 @@
 
 // This example demonstrates using multiple manifoldCAD types (Box, Vec2, Vec3, etc.)
 // with the context-agnostic pattern.
+//
+// IMPORTANT: There are two categories of imports from 'manifold-3d/manifoldCAD':
+//
+// 1. WASM types (need context handling):
+//    - Manifold, CrossSection, Mesh - from ManifoldToplevel
+//    - These need the optional manifoldContext parameter
+//
+// 2. JavaScript utilities (context-independent):
+//    - GLTFNode, GLTFMaterial, setMaterial, importManifold, etc.
+//    - These are JavaScript wrappers that work with ANY Manifold instance
+//    - Import them directly - no context handling needed
+//
+// Type definitions (Box, Vec2, Vec3) are TypeScript types only, not runtime values.
 
 import type {Manifold as ManifoldType} from '../../manifold-encapsulated-types';
 import type {ManifoldToplevel, Box, Vec2, Vec3} from '../../manifold';
@@ -119,7 +132,8 @@ export function createExtrudedShape(
 
 /**
  * Create a complex shape with materials using GLTFNode.
- * Demonstrates using GLTFNode and material types.
+ * Demonstrates that GLTFNode and setMaterial are JavaScript utilities
+ * that don't need context - they work with any Manifold instance.
  * 
  * @param options - Configuration for the shape
  * @param target - Optional base manifold
@@ -131,21 +145,19 @@ export function createMaterializedShape(
   target?: ManifoldType | null,
   manifoldContext?: ManifoldToplevel
 ): GLTFNode {
+  // WASM type - needs context handling
   const M = manifoldContext?.Manifold ?? Manifold;
   const {cube} = M;
-  const setMat = manifoldContext ? 
-    // For custom context, we'd need to handle setMaterial differently
-    // For now, use global since it's a scene builder function
-    setMaterial : 
-    setMaterial;
   
   const shape = target ?? cube(options.size);
   
-  // Create GLTFNode with material
+  // GLTFNode is a JavaScript utility - no context needed
+  // It works with any Manifold instance
   const node = new GLTFNode();
   node.manifold = shape;
   
   // Set material using Vec3 for color
+  // GLTFMaterial is also a JavaScript utility
   const material: GLTFMaterial = {
     baseColorFactor: [...options.color, 1.0],
     roughnessFactor: options.roughness ?? 0.5
