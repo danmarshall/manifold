@@ -35,9 +35,13 @@ If your library imports from `'manifold-3d/manifoldCAD'`, it will only work in t
 
 ## Pattern 1: Accept Optional Manifold Context (Recommended)
 
-The cleanest approach is to make your library functions accept an optional Manifold context parameter.
+The cleanest approach is to make your library functions accept an optional Manifold context parameter. Use either:
+- **2-parameter style** for simple creation functions: `(value, context?)`
+- **3-parameter style** for operations on existing geometry: `(options, target?, context?)`
 
-### Example: TeapotCube Library
+### Example 1A: Simple Creation (2-parameter)
+
+For functions that just create new geometry:
 
 ```typescript
 // teapot-cube.ts - A reusable library
@@ -80,15 +84,70 @@ export function createTeapotCube(
 export default () => createTeapotCube(100);
 ```
 
+### Example 1B: Operations on Geometry (3-parameter)
+
+For functions that can operate on existing geometry or create new geometry:
+
+```typescript
+import {Manifold} from 'manifold-3d/manifoldCAD';
+import type {ManifoldToplevel} from 'manifold-3d';
+
+interface ScaleOptions {
+  factor: number;
+  centerAtOrigin?: boolean;
+}
+
+/**
+ * Scale a shape uniformly, optionally centering it at the origin first.
+ * Demonstrates 3-parameter pattern: (options, target, context)
+ * 
+ * @param options - Scaling configuration
+ * @param target - Optional shape to scale (creates a cube if null)
+ * @param manifoldContext - Optional Manifold context
+ * @returns Scaled Manifold object
+ */
+export function scaleShape(
+  options: ScaleOptions,
+  target?: Manifold | null,
+  manifoldContext?: ManifoldToplevel
+): Manifold {
+  const M = manifoldContext?.Manifold ?? Manifold;
+  const {cube} = M;
+  
+  // Use target or create default
+  let shape = target ?? cube([10, 10, 10]);
+  
+  // Center at origin if requested
+  if (options.centerAtOrigin) {
+    const bounds = shape.boundingBox();
+    const center = [
+      (bounds.min[0] + bounds.max[0]) / 2,
+      (bounds.min[1] + bounds.max[1]) / 2,
+      (bounds.min[2] + bounds.max[2]) / 2
+    ];
+    shape = shape.translate([-center[0], -center[1], -center[2]]);
+  }
+  
+  return shape.scale([options.factor, options.factor, options.factor]);
+}
+
+// For manifoldCAD.org
+export default () => scaleShape({factor: 2}, createTeapotCube(50));
+```
+
 ### Usage in ManifoldCAD.org
 
 ```typescript
 // On manifoldcad.org
-import {createTeapotCube} from './teapot-cube';
+import {createTeapotCube, scaleShape} from './my-library';
 
-// Uses the default manifoldCAD context
+// 2-parameter: simple creation
 const teapot = createTeapotCube(150);
-export default teapot;
+
+// 3-parameter: operation on geometry (last param omitted, uses global context)
+const scaled = scaleShape({factor: 2, centerAtOrigin: true}, teapot);
+
+export default scaled;
 ```
 
 ### Usage in Custom Applications
@@ -98,14 +157,17 @@ Custom applications create their own WASM instance and bundle code at build time
 ```typescript
 // In your custom app (bundled at build time)
 import Module from 'manifold-3d';
-import {createTeapotCube} from './teapot-cube';
+import {createTeapotCube, scaleShape} from './my-library';
 
 // Initialize your WASM instance
 const wasm = await Module();
 wasm.setup();
 
-// Pass your custom WASM instance as the second parameter
+// 2-parameter: Pass WASM instance as second parameter
 const teapot = createTeapotCube(150, wasm);
+
+// 3-parameter: Pass WASM instance as third parameter
+const scaled = scaleShape({factor: 2, centerAtOrigin: true}, teapot, wasm);
 ```
 
 **Key differences from manifoldCAD.org:**
