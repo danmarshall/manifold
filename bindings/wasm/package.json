@@ -55,7 +55,7 @@
     },
     "./lib/manifoldCAD.js": {
       "import": {
-        "types": "./lib/manifoldCAD.d.ts",
+        "types": "./dist/manifoldCAD.d.ts",
         "default": "./lib/manifoldCAD.js"
       }
     },
