@@ -28,6 +28,62 @@ Also included are a novel and powerful suite of refining functions for smooth me
 
 Since Manifold is a WASM module, it does not automatically garbage-collect like regular JavaScript. You must manually `delete()` each object constructed by your scripts (both `Manifold` and `CrossSection`), see [discussion](https://github.com/elalish/manifold/discussions/256#discussioncomment-3944287).
 
+## Installation and Usage
+
+### NPM
+
+Install the package:
+```bash
+npm install manifold-3d
+```
+
+Import the WASM module:
+```javascript
+import Module from 'manifold-3d';
+
+const wasm = await Module();
+wasm.setup();
+const { Manifold, Mesh } = wasm;
+```
+
+Or use the manifoldCAD module for additional features:
+```javascript
+import { Manifold, GLTFNode } from 'manifold-3d/manifoldCAD';
+```
+
+### CDN (unpkg, jsdelivr, etc.)
+
+You can use manifold-3d directly from a CDN without installation:
+
+```html
+<script type="module">
+  // Import the WASM module
+  import Module from 'https://unpkg.com/manifold-3d@latest/manifold.js';
+  
+  const wasm = await Module();
+  wasm.setup();
+  const { Manifold } = wasm;
+  
+  // Create a cube
+  const cube = Manifold.cube([10, 10, 10]);
+  console.log('Volume:', cube.volume());
+  cube.delete();
+</script>
+```
+
+Or import from manifoldCAD for the extended API:
+```html
+<script type="module">
+  import { Manifold, GLTFNode } from 'https://unpkg.com/manifold-3d@latest/lib/manifoldCAD.js';
+  
+  // Manifold is ready to use (WASM is automatically initialized)
+  const cube = Manifold.cube([10, 10, 10]);
+  console.log('Volume:', cube.volume());
+</script>
+```
+
+**Note:** When importing from CDN, the WASM file (`manifold.wasm`) will be automatically loaded from the same CDN path. Make sure your environment allows fetching WASM files.
+
 ## Examples
 
 Please see our usage [examples](https://github.com/elalish/manifold/tree/master/bindings/wasm/examples) to see how to interface this library with `three.js`, `<model-viewer>`, and `glTF`. Of particular note are the included libraries for lossless roundtrip of manifold meshes through glTF files, via a new extension: [EXT_mesh_manifold](https://github.com/KhronosGroup/glTF/pull/2286). 

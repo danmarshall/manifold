@@ -53,6 +53,12 @@
         "default": "./lib/manifoldCAD.js"
       }
     },
+    "./lib/manifoldCAD.js": {
+      "import": {
+        "types": "./lib/manifoldCAD.d.ts",
+        "default": "./lib/manifoldCAD.js"
+      }
+    },
     "./lib/worker.bundled.js": {
       "import": {
         "types": "./lib/worker.d.ts",
